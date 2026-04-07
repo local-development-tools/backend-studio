@@ -1,0 +1,20 @@
+meta {
+  name: runCollection
+  type: http
+  seq: 12
+}
+
+post {
+  url: http://localhost:3000/collections/:collectionId/run
+  body: none
+  auth: inherit
+}
+
+params:path {
+  collectionId: 
+}
+
+settings {
+  encodeUrl: true
+  timeout: 0
+}

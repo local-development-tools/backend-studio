@@ -1,0 +1,15 @@
+meta {
+  name: getAiSettings
+  type: http
+  seq: 4
+}
+
+get {
+  url: http://localhost:3000/settings/ai
+  body: none
+  auth: inherit
+}
+
+settings {
+  encodeUrl: true
+}

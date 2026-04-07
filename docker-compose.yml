@@ -1,0 +1,43 @@
+name: microservices-app
+
+services:
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+      target: dev
+    container_name: microservices-app-backend
+    env_file:
+      - path: ./backend/.env
+        required: false
+    environment:
+      PORT: 3000
+      LMSTUDIO_BASE_URL: ${LMSTUDIO_BASE_URL:-ws://host.docker.internal:1234}
+      LMSTUDIO_MODEL: ${LMSTUDIO_MODEL:-llama-3.2-3b-instruct}
+      NODE_ENV: development
+    ports:
+      - "3000:3000"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - ./backend:/app
+      - /app/node_modules
+      - ./backend/data:/app/data
+      - ${MICROSERVICES_ROOT:-/tmp}:/microservices:ro
+      - type: bind
+        source: ./.env
+        target: /root.env
+    restart: unless-stopped
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: microservices-app-frontend
+    depends_on:
+      - backend
+    environment:
+      PORT: 5174
+      NODE_ENV: production
+    ports:
+      - "5174:5174"
+    restart: unless-stopped

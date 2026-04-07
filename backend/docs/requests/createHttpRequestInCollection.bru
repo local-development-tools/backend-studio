@@ -1,0 +1,30 @@
+meta {
+  name: createHttpRequestInCollection
+  type: http
+  seq: 17
+}
+
+post {
+  url: http://localhost:3000/collections/:collectionId/http/requests
+  body: json
+  auth: inherit
+}
+
+params:path {
+  collectionId: 
+}
+
+body:json {
+  {
+    "name": "",
+    "method": "GET",
+    "url": "",
+    "headers": {},
+    "body": {}
+  }
+}
+
+settings {
+  encodeUrl: true
+  timeout: 0
+}

@@ -1,0 +1,30 @@
+meta {
+  name: updateRequest
+  type: http
+  seq: 8
+}
+
+patch {
+  url: http://localhost:3000/requests/:id
+  body: json
+  auth: inherit
+}
+
+params:path {
+  id: 
+}
+
+body:json {
+  {
+    "name": "",
+    "method": "",
+    "url": "",
+    "headers": "",
+    "body": ""
+  }
+}
+
+settings {
+  encodeUrl: true
+  timeout: 0
+}

@@ -1,0 +1,23 @@
+meta {
+  name: generate
+  type: http
+  seq: 1
+}
+
+post {
+  url: http://localhost:3000/ai
+  body: json
+  auth: inherit
+}
+
+body:json {
+  {
+    "prompt": "",
+    "model": ""
+  }
+}
+
+settings {
+  encodeUrl: true
+  timeout: 0
+}

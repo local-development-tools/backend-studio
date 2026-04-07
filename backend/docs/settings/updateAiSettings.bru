@@ -1,0 +1,29 @@
+meta {
+  name: updateAiSettings
+  type: http
+  seq: 8
+}
+
+patch {
+  url: http://localhost:3000/settings/ai
+  body: json
+  auth: inherit
+}
+
+body:json {
+  {
+    "openAIApiKey": "",
+    "anthropicApiKey": "",
+    "lmStudio": {
+      "baseUrl": "ws://host.docker.internal:1234",
+      "model": "llama-3.2-3b-instruct"
+    },
+    "aiProvider": "openai",
+    "aiModel": ""
+  }
+}
+
+settings {
+  encodeUrl: true
+  timeout: 0
+}

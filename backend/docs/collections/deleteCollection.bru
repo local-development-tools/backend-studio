@@ -1,0 +1,19 @@
+meta {
+  name: deleteCollection
+  type: http
+  seq: 5
+}
+
+delete {
+  url: http://localhost:3000/collections/:id
+  body: none
+  auth: inherit
+}
+
+params:path {
+  id: 
+}
+
+settings {
+  encodeUrl: true
+}

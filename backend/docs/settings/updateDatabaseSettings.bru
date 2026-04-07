@@ -1,0 +1,26 @@
+meta {
+  name: updateDatabaseSettings
+  type: http
+  seq: 7
+}
+
+patch {
+  url: http://localhost:3000/settings/db
+  body: json
+  auth: inherit
+}
+
+body:json {
+  {
+    "host": "",
+    "port": 5432,
+    "username": "",
+    "password": "",
+    "database": ""
+  }
+}
+
+settings {
+  encodeUrl: true
+  timeout: 0
+}

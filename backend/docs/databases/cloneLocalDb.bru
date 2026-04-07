@@ -1,0 +1,27 @@
+meta {
+  name: cloneLocalDb
+  type: http
+  seq: 2
+}
+
+post {
+  url: http://localhost:3000/databases/clone-local
+  body: json
+  auth: inherit
+}
+
+body:json {
+  {
+    "host": "your_source_db_host",
+    "port": 5432,
+    "user": "your_source_db_user",
+    "password": "your_source_db_password",
+    "dbname": "your_source_db_name",
+    "sslmode": "require"
+  }
+}
+
+settings {
+  encodeUrl: true
+  timeout: 0
+}

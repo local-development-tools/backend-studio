@@ -1,0 +1,24 @@
+meta {
+  name: streamContainerLogs
+  type: http
+  seq: 3
+}
+
+get {
+  url: http://localhost:3000/containers/logs/stream/:id
+  body: none
+  auth: inherit
+}
+
+params:path {
+  id: 
+}
+
+params:query {
+  lineLimit: 50
+}
+
+settings {
+  encodeUrl: true
+  timeout: 0
+}

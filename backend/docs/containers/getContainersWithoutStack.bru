@@ -1,0 +1,16 @@
+meta {
+  name: getContainersWithoutStack
+  type: http
+  seq: 4
+}
+
+get {
+  url: http://localhost:3000/containers/nostack
+  body: none
+  auth: inherit
+}
+
+settings {
+  encodeUrl: true
+  timeout: 0
+}

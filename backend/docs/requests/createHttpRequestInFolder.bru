@@ -1,0 +1,30 @@
+meta {
+  name: createHttpRequestInFolder
+  type: http
+  seq: 18
+}
+
+post {
+  url: http://localhost:3000/folders/:folderId/http/requests
+  body: json
+  auth: inherit
+}
+
+params:path {
+  folderId: 
+}
+
+body:json {
+  {
+    "name": "",
+    "method": "GET",
+    "url": "",
+    "headers": {},
+    "body": {}
+  }
+}
+
+settings {
+  encodeUrl: true
+  timeout: 0
+}

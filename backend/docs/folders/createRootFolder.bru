@@ -1,0 +1,22 @@
+meta {
+  name: createRootFolder
+  type: http
+  seq: 3
+}
+
+post {
+  url: http://localhost:3000/folders
+  body: json
+  auth: inherit
+}
+
+body:json {
+  {
+    "name": ""
+  }
+}
+
+settings {
+  encodeUrl: true
+  timeout: 0
+}

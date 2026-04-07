@@ -1,0 +1,21 @@
+meta {
+  name: controlContainerLifecycle
+  type: http
+  seq: 8
+}
+
+post {
+  url: http://localhost:3000/containers/:id/lifecycle/:action
+  body: none
+  auth: inherit
+}
+
+params:path {
+  id: 
+  action: restart
+}
+
+settings {
+  encodeUrl: true
+  timeout: 0
+}

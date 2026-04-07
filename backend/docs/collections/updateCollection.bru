@@ -1,0 +1,26 @@
+meta {
+  name: updateCollection
+  type: http
+  seq: 4
+}
+
+patch {
+  url: http://localhost:3000/collections/:id
+  body: json
+  auth: inherit
+}
+
+params:path {
+  id: 
+}
+
+body:json {
+  {
+    "name": ""
+  }
+}
+
+settings {
+  encodeUrl: true
+  timeout: 0
+}

@@ -1,0 +1,20 @@
+meta {
+  name: query
+  type: http
+  seq: 1
+}
+
+post {
+  url: http://localhost:3000/databases/query
+  body: json
+  auth: inherit
+}
+
+body:json {
+  {"query":  ""}
+}
+
+settings {
+  encodeUrl: true
+  timeout: 0
+}

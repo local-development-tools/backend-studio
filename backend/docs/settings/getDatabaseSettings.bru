@@ -1,0 +1,15 @@
+meta {
+  name: getDatabaseSettings
+  type: http
+  seq: 1
+}
+
+get {
+  url: http://localhost:3000/settings/db
+  body: none
+  auth: inherit
+}
+
+settings {
+  encodeUrl: true
+}

@@ -1,0 +1,21 @@
+meta {
+  name: importCollection
+  type: http
+  seq: 7
+}
+
+post {
+  url: http://localhost:3000/collections/import
+  body: multipartForm
+  auth: inherit
+}
+
+body:multipart-form {
+  files: @file
+  paths: ["my-collection/request1.bru"]
+}
+
+settings {
+  encodeUrl: true
+  timeout: 0
+}

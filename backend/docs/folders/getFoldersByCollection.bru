@@ -1,0 +1,20 @@
+meta {
+  name: getFoldersByCollection
+  type: http
+  seq: 1
+}
+
+get {
+  url: http://localhost:3000/collections/:collectionId/folders
+  body: none
+  auth: inherit
+}
+
+params:path {
+  collectionId: 
+}
+
+settings {
+  encodeUrl: true
+  timeout: 0
+}

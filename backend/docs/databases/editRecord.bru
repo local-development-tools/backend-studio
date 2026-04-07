@@ -1,0 +1,30 @@
+meta {
+  name: editRecord
+  type: http
+  seq: 6
+}
+
+patch {
+  url: http://localhost:3000/databases/records
+  body: json
+  auth: inherit
+}
+
+body:json {
+  {
+    "table": "users",
+    "values": {
+      "email": "updated@example.com",
+      "name": "Updated User"
+    },
+    "where": {
+      "id": 1
+    },
+    "returning": ["id", "email", "name"]
+  }
+}
+
+settings {
+  encodeUrl: true
+  timeout: 0
+}

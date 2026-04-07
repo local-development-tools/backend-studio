@@ -1,0 +1,15 @@
+meta {
+  name: getRunningContainers
+  type: http
+  seq: 2
+}
+
+get {
+  url: http://localhost:3000/containers/running
+  body: none
+  auth: inherit
+}
+
+settings {
+  encodeUrl: true
+}

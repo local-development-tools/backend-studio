@@ -1,0 +1,32 @@
+meta {
+  name: createGrpcRequestInCollection
+  type: http
+  seq: 14
+}
+
+post {
+  url: http://localhost:3000/collections/:collectionId/grpc/requests
+  body: json
+  auth: inherit
+}
+
+params:path {
+  collectionId: 
+}
+
+body:json {
+  {
+    "name": "",
+    "serverAddress": "localhost:50051",
+    "service": "example.GreeterService",
+    "method": "SayHello",
+    "protoContent": "",
+    "message": {},
+    "metadata": {}
+  }
+}
+
+settings {
+  encodeUrl: true
+  timeout: 0
+}
