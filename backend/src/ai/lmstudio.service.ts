@@ -57,10 +57,10 @@ export class LmStudioService {
 
     const client = this.createClient();
     const selectedModel = this.resolveModel(model);
-    let llm;
+    let llm: { complete: (input: string) => Promise<unknown> };
 
     try {
-      llm = await client.llm.model(selectedModel);
+      llm = (await client.llm.model(selectedModel)) as { complete: (input: string) => Promise<unknown> };
     } catch (error) {
       if (model?.trim()) {
         throw new BadRequestException(
@@ -69,7 +69,7 @@ export class LmStudioService {
       }
 
       try {
-        llm = await client.llm.model();
+        llm = (await client.llm.model()) as { complete: (input: string) => Promise<unknown> };
       } catch (fallbackError) {
         throw new BadRequestException(
           `LM Studio is not reachable or no model is loaded. ${this.getProviderErrorMessage(fallbackError)} ${this.dockerLmStudioHint}`,
@@ -79,7 +79,7 @@ export class LmStudioService {
 
     const response = await llm.complete(prompt);
 
-    return response.content;
+    return this.extractCompletionContent(response);
   }
 
   async listModels(): Promise<ProviderModelList> {
@@ -271,7 +271,7 @@ export class LmStudioService {
     }
 
     try {
-      const parsed = JSON.parse(rawOutput);
+      const parsed: unknown = JSON.parse(rawOutput);
 
       if (Array.isArray(parsed)) {
         return this.extractModelsFromArray(parsed);
@@ -417,12 +417,14 @@ export class LmStudioService {
   private isCliNotFoundError(error: unknown): boolean {
     if (error instanceof BadRequestException) {
       const response = error.getResponse();
-      const message =
+      const rawMessage: unknown =
         typeof response === 'string'
           ? response
           : typeof response === 'object' && response !== null
-            ? String((response as { message?: unknown }).message ?? '')
+            ? (response as { message?: unknown }).message
             : '';
+
+      const message = typeof rawMessage === 'string' ? rawMessage : this.serializeUnknown(rawMessage);
 
       return /LM Studio CLI command not found/i.test(message);
     }
@@ -448,5 +450,46 @@ export class LmStudioService {
     }
 
     return 'LM Studio request failed. Ensure LM Studio is running with local server enabled.';
+  }
+
+  private extractCompletionContent(response: unknown): string {
+    if (!response || typeof response !== 'object') {
+      return '';
+    }
+
+    const content = (response as { content?: unknown }).content;
+
+    if (typeof content === 'string') {
+      return content;
+    }
+
+    if (Array.isArray(content)) {
+      return content
+        .map((item) => this.serializeUnknown(item))
+        .join('\n')
+        .trim();
+    }
+
+    return this.serializeUnknown(content);
+  }
+
+  private serializeUnknown(value: unknown): string {
+    if (value === null || value === undefined) {
+      return '';
+    }
+
+    if (typeof value === 'string') {
+      return value;
+    }
+
+    if (typeof value === 'number' || typeof value === 'boolean' || typeof value === 'bigint') {
+      return `${value}`;
+    }
+
+    try {
+      return JSON.stringify(value);
+    } catch {
+      return '[unserializable-value]';
+    }
   }
 }

@@ -406,7 +406,7 @@ export class AiService {
           try {
             return JSON.stringify(item);
           } catch {
-            return String(item);
+            return '[unserializable-log-item]';
           }
         })
         .filter((line) => !!line?.trim())
