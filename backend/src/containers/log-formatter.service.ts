@@ -2,7 +2,7 @@ import { Injectable } from '@nestjs/common';
 
 export interface FormattedLogEvent {
   type: 'simple' | 'complex' | 'group';
-  message: string | Record<string, any> | string[];
+  message: string | Record<string, unknown> | string[];
   level: 'error' | 'warn' | 'info' | 'debug' | 'trace' | 'fatal' | 'unknown';
   std: 'stdout' | 'stderr';
   timestamp: number;
@@ -17,13 +17,13 @@ export class LogFormatterService {
   private readonly pythonTracebackEndPattern =
     /^[A-Za-z_][A-Za-z0-9_]*(Error|Exception|Warning|Exit|Interrupt)(: .*)?$/;
 
-  private tryParseJSON(line: string): Record<string, any> | null {
+  private tryParseJSON(line: string): Record<string, unknown> | null {
     try {
-      const parsed = JSON.parse(line);
+      const parsed: unknown = JSON.parse(line);
       if (typeof parsed === 'object' && parsed !== null) {
-        return parsed;
+        return parsed as Record<string, unknown>;
       }
-    } catch (error) {
+    } catch {
       // Not JSON, continue
     }
     return null;
@@ -33,7 +33,7 @@ export class LogFormatterService {
    * Try to parse log in logfmt format: key1=value1 key2="value 2"
    * Example: time=2024-01-01T12:00:00Z level=info msg="Hello world"
    */
-  private tryParseLogfmt(line: string): Record<string, any> | null {
+  private tryParseLogfmt(line: string): Record<string, unknown> | null {
     const keyRegex = /\b([a-zA-Z_]\w*)=/g;
     const entries: Array<{
       key: string;
@@ -52,7 +52,7 @@ export class LogFormatterService {
 
     if (entries.length === 0) return null;
 
-    const result: Record<string, any> = {};
+    const result: Record<string, unknown> = {};
 
     for (let i = 0; i < entries.length; i++) {
       const { key, valueStart } = entries[i];
@@ -72,7 +72,7 @@ export class LogFormatterService {
   /**
    * Detect if log is complex (JSON or logfmt)
    */
-  private detectComplexLog(line: string): Record<string, any> | null {
+  private detectComplexLog(line: string): Record<string, unknown> | null {
     const json = this.tryParseJSON(line);
     if (json) return json;
 
@@ -172,7 +172,7 @@ export class LogFormatterService {
     };
   }
 
-  private resolveLevelFromParsed(parsed: Record<string, any> | null): FormattedLogEvent['level'] | null {
+  private resolveLevelFromParsed(parsed: Record<string, unknown> | null): FormattedLogEvent['level'] | null {
     if (!parsed) return null;
 
     const raw = parsed['level'] ?? parsed['lvl'] ?? parsed['severity'] ?? parsed['log.level'];

@@ -16,6 +16,7 @@ import { Observable, Subject } from 'rxjs';
 import { map } from 'rxjs/operators';
 
 const MICROSERVICES_MOUNT = '/microservices';
+type DockerContainerInfo = Awaited<ReturnType<Docker['listContainers']>>[number];
 
 type ContainerLifecycleAction = 'start' | 'stop' | 'restart' | 'pause' | 'unpause' | 'kill';
 
@@ -218,7 +219,7 @@ export class ContainersService implements OnModuleInit, OnModuleDestroy {
       .pipe(map((event) => ({ type: 'container.lifecycle', data: event }) as MessageEvent));
   }
 
-  private toContainerResponse(container: any) {
+  private toContainerResponse(container: DockerContainerInfo) {
     return {
       id: container.Id,
       names: container.Names,
@@ -399,8 +400,8 @@ export class ContainersService implements OnModuleInit, OnModuleDestroy {
     }
   }
 
-  private async getContainerById(containerId: string): Promise<any> {
-    const containers = await docker.listContainers({ all: true });
+  private async getContainerById(containerId: string): Promise<DockerContainerInfo> {
+    const containers: DockerContainerInfo[] = await docker.listContainers({ all: true });
     const container = containers.find((item) => item.Id === containerId || item.Id.startsWith(containerId));
 
     if (!container) {
