@@ -55,7 +55,32 @@ import {
   getFolderById,
   updateFolder,
 } from "~/lib/api/requests/fileStructure/folders";
-import { buildUrlWithQuery, parseBodyToApi, parseBodyToEditor, toHeaderPairs, toHeaderRecord, toResponsePanelModel } from "~/lib/api/requests/utils";
+import {
+  buildUrlWithQuery,
+  parseBodyToApi,
+  parseBodyToEditor,
+  toHeaderPairs,
+  toHeaderRecord,
+  toResponsePanelModel,
+} from "~/lib/api/requests/utils";
+import {
+  handleCreateCollection,
+  handleDeleteCollection,
+  handleExportCollection,
+  handleImportCollection,
+  handleUpdateCollection,
+} from "~/lib/api/requests/treeActions/collectionsHandler";
+import {
+  handleCreateFolder,
+  handleDeleteFolder,
+  handleUpdateFolder,
+} from "~/lib/api/requests/treeActions/foldersHandlers";
+import {
+  handleCreateGrpcRequest,
+  handleCreateHttpRequest,
+  handleDeleteRequest,
+  handleRenameRequest,
+} from "~/lib/api/requests/treeActions/requestsHandlers";
 
 export function meta({}: Route.MetaArgs) {
   return [
@@ -66,7 +91,6 @@ export function meta({}: Route.MetaArgs) {
 
 export type TreeAction =
   | {type: "select"; id: string}
-  | {type: "treeRefresh"}
   | {type: "createCollection"} //name given via modal
   | {type: "deleteCollection"; id: string}
   | {type: "updateCollection"; id: string}
@@ -292,7 +316,10 @@ export default function Requests() {
             type: "http" as const,
             name: selectedRequest.name,
             method: selectedRequest.method,
-            url: buildUrlWithQuery(selectedRequest.url, selectedRequest.queryParams),
+            url: buildUrlWithQuery(
+              selectedRequest.url,
+              selectedRequest.queryParams,
+            ),
             headers: toHeaderRecord(selectedRequest.headers),
             body: parseBodyToApi(selectedRequest.body),
             postScript: selectedRequest.postScript ?? "",
@@ -498,303 +525,79 @@ export default function Requests() {
         console.log(requests);
         break;
 
-      case "treeRefresh":
-        console.log("there used to be funcionality here, remove");
-        break;
-
       case "createCollection":
-        openModal(
-          "Create Collection",
-          [
-            {
-              name: "name",
-              label: "Collection Name",
-              placeholder: "Enter name",
-              required: true,
-            },
-          ],
-          (values) => {
-            createCollection({name: values.name as string})
-              .then(() => setRefreshKey((prev) => prev + 1))
-              .catch((err) =>
-                console.error("Failed to create collection:", err),
-              );
-          },
-        );
+        handleCreateCollection({openModal, setRefreshKey});
         break;
 
       case "deleteCollection":
-        deleteCollection(action.id)
-          .then(() => setRefreshKey((prev) => prev + 1))
-          .catch((err) => console.error("Failed to delete collection:", err));
+        handleDeleteCollection({id: action.id, setRefreshKey});
         break;
 
       case "updateCollection":
-        getCollectionById(action.id)
-          .then((c) => c.name)
-          .catch(() => "")
-          .then((temp) => {
-            openModal(
-              "Rename Collection",
-              [
-                {
-                  name: "name",
-                  label: "Collection Name",
-                  placeholder: "Enter name",
-                  defaultValue: temp,
-                  required: true,
-                },
-              ],
-              (values) => {
-                updateCollection(action.id, {name: values.name as string})
-                  .then(() => setRefreshKey((prev) => prev + 1))
-                  .catch((err) =>
-                    console.error("Failed to update collection:", err),
-                  );
-              },
-            );
-          });
+        handleUpdateCollection({
+          id: action.id,
+          openModal,
+          setRefreshKey,
+        });
         break;
 
       case "importCollection":
-        openModal(
-          "Import Collection",
-          [
-            {
-              name: "file",
-              label: "ZIP File",
-              type: "file",
-              accept: ".zip",
-              required: true,
-            },
-            {
-              name: "paths",
-              label: "Paths (JSON array)",
-              placeholder: '["my-collection/request1.bru"]',
-              required: false,
-            },
-          ],
-          async (values) => {
-            if (!(values.file instanceof File)) return;
-
-            await importCollection({
-              file: values.file,
-              paths:
-                typeof values.paths === "string" ? values.paths : undefined,
-            });
-
-            setRefreshKey((prev) => prev + 1);
-          },
-        );
+        handleImportCollection({openModal, setRefreshKey});
         break;
 
       case "exportCollection":
-        exportCollection(action.id).catch((err) =>
-          console.error("Failed to export collection:", err),
-        );
+        handleExportCollection({id: action.id});
         break;
 
       case "createFolder":
-        openModal(
-          "Create Folder",
-          [
-            {
-              name: "name",
-              label: "Folder Name",
-              placeholder: "Enter name",
-              required: true,
-            },
-          ],
-          (values) => {
-            const promise =
-              action.location === "collection"
-                ? createFolderInCollection(action.parentId, {
-                    name: values.name as string,
-                  })
-                : createFolderInFolder(action.parentId, {
-                    name: values.name as string,
-                  });
-            promise
-              .then(() => setRefreshKey((prev) => prev + 1))
-              .catch((err) => console.error("Failed to create folder:", err));
-          },
-        );
+        handleCreateFolder({
+          location: action.location,
+          parentId: action.parentId,
+          openModal,
+          setRefreshKey,
+        });
         break;
 
       case "deleteFolder":
-        deleteFolder(action.id)
-          .then(() => setRefreshKey((prev) => prev + 1))
-          .catch((err) => console.error("Failed to delete folder:", err));
+        handleDeleteFolder({id: action.id, setRefreshKey});
         break;
 
       case "updateFolder":
-        getFolderById(action.id)
-          .then((f) => f.name)
-          .catch(() => "")
-          .then((temp) => {
-            openModal(
-              "Rename Folder",
-              [
-                {
-                  name: "name",
-                  label: "Folder Name",
-                  placeholder: "Enter name",
-                  defaultValue: temp,
-                  required: true,
-                },
-              ],
-              (values) => {
-                updateFolder(action.id, {name: values.name as string})
-                  .then(() => setRefreshKey((prev) => prev + 1))
-                  .catch((err) =>
-                    console.error("Failed to update Folder:", err),
-                  );
-              },
-            );
-          });
+        handleUpdateFolder({
+          id: action.id,
+          openModal,
+          setRefreshKey,
+        });
         break;
 
       case "createHttpRequest":
-        openModal(
-          "Create Request",
-          [
-            {
-              name: "name",
-              label: "Request Name",
-              placeholder: "Enter name",
-              required: true,
-            },
-            {name: "url", label: "url", placeholder: "http://..."},
-            {
-              label: "Method",
-              name: "method",
-              type: "select",
-              options: ["GET", "POST", "PUT", "DELETE", "PATCH"],
-              defaultValue: "GET",
-            },
-          ],
-          (values) => {
-            console.log((`${values.method}` as HttpMethod) === "GET");
-            console.log(action.parentId);
-            const promise =
-              action.location === "collection"
-                ? createHttpRequestInCollection(
-                    action.parentId,
-                    values.name as string,
-                    {
-                      method: `${values.method as string}` as HttpMethod,
-                      url: (values.url as string) || "http://localhost:3000",
-                      headers: {},
-                      body: {},
-                    },
-                  )
-                : createHttpRequestInFolder(
-                    action.parentId,
-                    values.name as string,
-                    {
-                      method: `${values.method as string}` as HttpMethod,
-                      url: (values.url as string) || "http://localhost:3000",
-                      headers: {},
-                      body: {},
-                    },
-                  );
-
-            promise
-              .then(() => setRefreshKey((prev) => prev + 1))
-              .catch((err) => console.error("Failed to create request:", err));
-          },
-        );
+        handleCreateHttpRequest({
+          location: action.location,
+          parentId: action.parentId,
+          openModal,
+          setRefreshKey,
+        });
         break;
 
       case "renameRequest":
-        getRequestById(action.id)
-          .then((r) => r.name)
-          .catch(() => "")
-          .then((temp) => {
-            openModal(
-              "Rename Request",
-              [
-                {
-                  name: "name",
-                  label: "Request Name",
-                  placeholder: "Enter name",
-                  defaultValue: temp,
-                  required: true,
-                },
-              ],
-              (values) => {
-                updateRequest(action.id, {name: values.name as string})
-                  .then(() => setRefreshKey((prev) => prev + 1))
-                  .catch((err) =>
-                    console.error("Failed to update request:", err),
-                  );
-              },
-            );
-          });
+        handleRenameRequest({
+          id: action.id,
+          openModal,
+          setRefreshKey,
+        });
         break;
 
       case "deleteRequest":
-        deleteRequest(action.id)
-          .then(() => setRefreshKey((prev) => prev + 1))
-          .catch((err) => console.error("Failed to delete folder:", err));
+        handleDeleteRequest({id: action.id, setRefreshKey});
         break;
 
       case "createGrpcRequest":
-        openModal(
-          "Create gRPC Request",
-          [
-            {
-              name: "name",
-              label: "Request Name",
-              placeholder: "Enter name",
-              required: true,
-            },
-            {
-              name: "service",
-              label: "Service",
-              placeholder: "my.package.Service",
-              required: true,
-            },
-            {
-              name: "method",
-              label: "Method",
-              placeholder: "MyMethod",
-              required: true,
-            },
-            {
-              name: "serverAddress",
-              label: "Server Address",
-              placeholder: "localhost:50051",
-              required: true,
-            },
-          ],
-          (values) => {
-            const data = {
-              serverAddress: values.serverAddress as string,
-              service: values.service as string,
-              method: values.method as string,
-            };
-
-            const promise =
-              action.location === "collection"
-                ? createGrpcRequestInCollection(
-                    action.parentId,
-                    values.name as string,
-                    data,
-                  )
-                : createGrpcRequestInFolder(
-                    action.parentId,
-                    values.name as string,
-                    data,
-                  );
-
-            promise
-              .then(() => setRefreshKey((prev) => prev + 1))
-              .catch((err) =>
-                console.error("Failed to create gRPC request:", err),
-              );
-          },
-        );
+        handleCreateGrpcRequest({
+          location: action.location,
+          parentId: action.parentId,
+          openModal,
+          setRefreshKey,
+        });
         break;
     }
   };
