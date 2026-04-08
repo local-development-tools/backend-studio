@@ -1,0 +1,24 @@
+name: microservices-app-dev
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: sample-employee-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: sample_employee
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - "5433:5432"
+    volumes:
+      - postgres_dev_data:/var/lib/postgresql/data
+      - ./docker/dev/postgres/init-sample-employee.sql:/docker-entrypoint-initdb.d/01-init-sample-employee.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d sample_employee"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  postgres_dev_data:
