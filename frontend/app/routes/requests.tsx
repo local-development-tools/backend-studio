@@ -9,11 +9,8 @@ import {
 
 import type {
   Request,
-  RequestType,
   MockResponse,
-  HttpRequest,
   HttpMethod,
-  GrpcRequest,
 } from "~/components/requests/types";
 
 import {Globe, Server} from "lucide-react";
@@ -21,12 +18,6 @@ import {Globe, Server} from "lucide-react";
 import {HttpRequestEditor} from "~/components/requests/HttpRequestEditor";
 import {GrpcRequestEditor} from "~/components/requests/GrpcRequestEditor";
 import {ResponsePanel} from "~/components/requests/ResponsePanel";
-import {
-  listRootRequests,
-  type ApiRequest,
-} from "~/lib/api/requests/listRootRequests";
-import {createRootRequest} from "~/lib/api/requests/createRootRequest";
-import {createRootGrpcRequest} from "~/lib/api/requests/createRootGrpcRequest";
 import {updateRequest as updateRequestApi} from "~/lib/api/requests/updateRequest";
 import {runRequest} from "~/lib/api/requests/runRequest";
 import {interpolateVariables} from "~/lib/variableStore";
@@ -47,7 +38,6 @@ import {
   deleteRequest,
   getRequestById,
   updateRequest,
-  type CreateRequestDto,
 } from "~/lib/api/requests/fileStructure/requests";
 import {ModalForm, type InputField} from "~/components/requests/modalForm";
 import {
@@ -65,6 +55,7 @@ import {
   getFolderById,
   updateFolder,
 } from "~/lib/api/requests/fileStructure/folders";
+import { buildUrlWithQuery, parseBodyToApi, parseBodyToEditor, toHeaderPairs, toHeaderRecord, toResponsePanelModel } from "~/lib/api/requests/utils";
 
 export function meta({}: Route.MetaArgs) {
   return [
@@ -72,155 +63,6 @@ export function meta({}: Route.MetaArgs) {
     {name: "description", content: "API testing interface"},
   ];
 }
-
-// const [nodes, setNodes] = useState<RequestsNode[]>([]);
-
-// const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
-
-const toHeaderPairs = (headers?: Record<string, string>) =>
-  Object.entries(headers ?? {}).map(([key, value]) => ({key, value}));
-
-const toHeaderRecord = (headers: {key: string; value: string}[]) =>
-  headers.reduce<Record<string, string>>((acc, item) => {
-    const key = item.key.trim();
-    if (key) {
-      acc[key] = item.value;
-    }
-    return acc;
-  }, {});
-
-const parseBodyToEditor = (body: unknown): string => {
-  if (body === undefined || body === null) {
-    return "";
-  }
-  if (typeof body === "string") {
-    return body;
-  }
-  try {
-    return JSON.stringify(body, null, 2);
-  } catch {
-    return String(body);
-  }
-};
-
-const parseBodyToApi = (body: string): unknown => {
-  const trimmed = body.trim();
-  if (!trimmed) {
-    return undefined;
-  }
-  try {
-    return JSON.parse(trimmed);
-  } catch {
-    return body;
-  }
-};
-
-const parseUrlParts = (
-  url: string,
-): {url: string; queryParams: {key: string; value: string}[]} => {
-  try {
-    const parsed = new URL(url);
-    return {
-      url: `${parsed.origin}${parsed.pathname}`,
-      queryParams: Array.from(parsed.searchParams.entries()).map(
-        ([key, value]) => ({key, value}),
-      ),
-    };
-  } catch {
-    return {url, queryParams: []};
-  }
-};
-
-const buildUrlWithQuery = (
-  baseUrl: string,
-  queryParams: {key: string; value: string}[],
-): string => {
-  const filtered = queryParams.filter((item) => item.key.trim());
-  if (filtered.length === 0) {
-    return baseUrl;
-  }
-
-  try {
-    const parsed = new URL(baseUrl);
-    parsed.search = "";
-    filtered.forEach((item) =>
-      parsed.searchParams.append(item.key, item.value),
-    );
-    return parsed.toString();
-  } catch {
-    const query = filtered
-      .map(
-        (item) =>
-          `${encodeURIComponent(item.key)}=${encodeURIComponent(item.value)}`,
-      )
-      .join("&");
-    const clean = baseUrl.split("?")[0];
-    return `${clean}?${query}`;
-  }
-};
-
-const toHttpRequest = (item: ApiRequest): HttpRequest => {
-  const parsedUrl = parseUrlParts(item.url);
-  return {
-    id: item.id,
-    name: item.name,
-    type: "http",
-    method: (item.method?.toUpperCase() as HttpMethod) || "GET",
-    url: parsedUrl.url,
-    headers: toHeaderPairs(item.headers),
-    queryParams: parsedUrl.queryParams,
-    body: parseBodyToEditor(item.body),
-  };
-};
-
-const toGrpcRequest = (item: ApiRequest): GrpcRequest => ({
-  id: item.id,
-  name: item.name,
-  type: "grpc",
-  serverAddress: item.serverAddress ?? item.url ?? "localhost:50051",
-  service: item.service ?? "",
-  method: item.method,
-  protoContent: item.protoContent ?? "",
-  message: parseBodyToEditor(item.message),
-  metadata: toHeaderPairs(item.metadata),
-  collectionId: item.collectionId ?? undefined,
-});
-
-const toUiRequest = (item: ApiRequest): Request => {
-  if (item.type === "grpc") {
-    return toGrpcRequest(item);
-  }
-
-  return toHttpRequest(item);
-};
-
-const toResponsePanelModel = (result: {
-  status?: number;
-  statusText?: string;
-  headers?: Record<string, string>;
-  durationMs: number;
-  bodyText?: string;
-  bodyJson?: unknown;
-  error?: string;
-  fallbackBody?: string;
-}): MockResponse => {
-  const body =
-    result.bodyText ??
-    (result.bodyJson !== undefined
-      ? JSON.stringify(result.bodyJson, null, 2)
-      : (result.error ?? result.fallbackBody ?? ""));
-  return {
-    status: result.status ?? 0,
-    statusText: result.statusText ?? (result.error ? "Error" : "Unknown"),
-    time: result.durationMs,
-    size: `${new Blob([body]).size} B`,
-    headers: Object.entries(result.headers ?? {}).map(([key, value]) => ({
-      key,
-      value,
-    })),
-    body,
-  };
-};
 
 export type TreeAction =
   | {type: "select"; id: string}
