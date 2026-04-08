@@ -130,7 +130,7 @@ export class CollectionImportService {
       folder.id = folderId;
     }
 
-    const sourceMetadataByFolder = new Map<string, any>();
+    const sourceMetadataByFolder = new Map<string, unknown>();
     const relativePathByOldFolderId = new Map<string, string>();
     for (const folder of input.tree.folders) {
       const sourceMetaPath = path.join(input.sourcePath, ...folder.relativePath.split('/'), 'meta.json');
@@ -173,10 +173,16 @@ export class CollectionImportService {
       return folderIdByRelativePath.get(parentRelativePath) ?? null;
     };
 
-    const getOldFolderId = (metadata: any): string | null => {
-      if (typeof metadata?.id === 'string' && metadata.id.trim()) {
-        return metadata.id;
+    const getOldFolderId = (metadata: unknown): string | null => {
+      if (!metadata || typeof metadata !== 'object') {
+        return null;
       }
+
+      const id = (metadata as { id?: unknown }).id;
+      if (typeof id === 'string' && id.trim()) {
+        return id;
+      }
+
       return null;
     };
 
