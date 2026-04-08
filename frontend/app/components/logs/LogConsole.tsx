@@ -191,7 +191,7 @@ export const LogConsole = ({
             Auto Scroll
           </label>
 
-          <AIHelpDialog title={title} logs={logs} />
+          <AIHelpDialog title={title} logs={filteredLogs} />
         </div>
       </CardHeader>
 
