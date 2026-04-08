@@ -16,7 +16,7 @@ describe('AppController', () => {
 
   describe('root', () => {
     it('should return "Hello World!"', () => {
-      expect(appController.getHello()).toBe('Hello World!');
+      expect(appController.getHello()).toBe('Hello World! You can find the API documentation at <a href=\"https://github.com/local-development-tools/backend-studio/blob/main/backend/docs/endpointsList.md\" target=\"_blank\">here</a>.');
     });
   });
 });
