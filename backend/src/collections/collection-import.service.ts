@@ -11,12 +11,32 @@ type ImportEntry = {
   content: Buffer;
 };
 
+type UploadedFile = {
+  fieldname: string;
+  originalname: string;
+  buffer: Buffer;
+};
+
+type SourceFolderMetadata = {
+  id?: unknown;
+  folders?: unknown;
+  parentId?: unknown;
+};
+
 @Injectable()
 export class CollectionImportService {
   private readonly collectionsDir = path.join(process.cwd(), 'data', 'collections');
 
+  private toSourceFolderMetadata(value: unknown): SourceFolderMetadata | null {
+    if (!value || typeof value !== 'object') {
+      return null;
+    }
+
+    return value as SourceFolderMetadata;
+  }
+
   async importCollection(input: {
-    files: Express.Multer.File[];
+    files: UploadedFile[];
     paths?: string | string[];
     collectionName?: string;
   }): Promise<ImportedCollectionTree> {
@@ -148,12 +168,13 @@ export class CollectionImportService {
 
     const oldParentIdByOldChildId = new Map<string, string>();
     for (const metadata of sourceMetadataByFolder.values()) {
-      if (!Array.isArray(metadata?.folders) || typeof metadata?.id !== 'string') {
+      const sourceMetadata = this.toSourceFolderMetadata(metadata);
+      if (!sourceMetadata || !Array.isArray(sourceMetadata.folders) || typeof sourceMetadata.id !== 'string') {
         continue;
       }
 
-      const oldParentId = metadata.id;
-      for (const oldChildId of metadata.folders) {
+      const oldParentId = sourceMetadata.id;
+      for (const oldChildId of sourceMetadata.folders) {
         if (typeof oldChildId === 'string' && oldChildId.trim()) {
           oldParentIdByOldChildId.set(oldChildId, oldParentId);
         }
@@ -174,11 +195,12 @@ export class CollectionImportService {
     };
 
     const getOldFolderId = (metadata: unknown): string | null => {
-      if (!metadata || typeof metadata !== 'object') {
+      const sourceMetadata = this.toSourceFolderMetadata(metadata);
+      if (!sourceMetadata) {
         return null;
       }
 
-      const id = (metadata as { id?: unknown }).id;
+      const id = sourceMetadata.id;
       if (typeof id === 'string' && id.trim()) {
         return id;
       }
@@ -188,11 +210,13 @@ export class CollectionImportService {
 
     const childFoldersByParentId = new Map<string, string[]>();
     for (const folder of input.tree.folders) {
-      const sourceMetadata = sourceMetadataByFolder.get(folder.relativePath);
+      const sourceMetadata = this.toSourceFolderMetadata(sourceMetadataByFolder.get(folder.relativePath));
       const oldFolderId = getOldFolderId(sourceMetadata);
+      const sourceParentId =
+        typeof sourceMetadata?.parentId === 'string' && sourceMetadata.parentId.trim() ? sourceMetadata.parentId : null;
 
-      if (typeof sourceMetadata?.parentId === 'string' && sourceMetadata.parentId.trim()) {
-        folder.parentId = getNewParentId(sourceMetadata.parentId);
+      if (sourceParentId) {
+        folder.parentId = getNewParentId(sourceParentId);
       } else if (oldFolderId && oldParentIdByOldChildId.has(oldFolderId)) {
         folder.parentId = getNewParentId(oldParentIdByOldChildId.get(oldFolderId));
       } else {
@@ -275,7 +299,7 @@ export class CollectionImportService {
     };
   }
 
-  private pickArchiveFile(files: Express.Multer.File[]): Express.Multer.File | null {
+  private pickArchiveFile(files: UploadedFile[]): UploadedFile | null {
     const archives = files.filter(
       (file) => file.fieldname === 'archive' || file.originalname.toLowerCase().endsWith('.zip'),
     );
@@ -320,7 +344,7 @@ export class CollectionImportService {
   }
 
   private extractEntriesFromMultipartFiles(
-    files: Express.Multer.File[],
+    files: UploadedFile[],
     pathsInput?: string | string[],
   ): { entries: ImportEntry[]; rootFolderName: string | null } {
     const providedPaths = this.normalizePathsInput(pathsInput);
