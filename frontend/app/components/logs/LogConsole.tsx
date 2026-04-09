@@ -69,7 +69,7 @@ export const LogConsole = ({
   const startYRef = useRef(0);
   const startHeightRef = useRef(0);
 
-  // Track visibility to avoid exceeding the browser's 6 concurrent SSE connections per domain
+  // visibility observer
   useEffect(() => {
     const el = containerRef.current;
     if (!el) return;
@@ -83,7 +83,7 @@ export const LogConsole = ({
     return () => observer.disconnect();
   }, []);
 
-  // SSE connection — only open when the card is visible in the viewport
+  // SSE
   useEffect(() => {
     if (!isVisible) return;
 
@@ -116,7 +116,6 @@ export const LogConsole = ({
   // auto scroll
   const scrollToBottom = () => {
     if (!viewportRef.current) return;
-
     viewportRef.current.scrollTop += viewportRef.current.scrollHeight;
   };
 
@@ -124,7 +123,7 @@ export const LogConsole = ({
     if (!autoScroll) return;
     scrollToBottom();
   }, [filteredLogs, autoScroll]);
-  
+
   // resize handling
   useEffect(() => {
     if (!resizing) return;
@@ -166,7 +165,7 @@ export const LogConsole = ({
             {LEVELS.map((level) => (
               <label
                 key={level}
-                className="flex items-center gap-1 text-xs uppercase cursor-pointer"
+                className="flex items-center gap-1 text-xs uppercase cursor-pointer select-none"
               >
                 <Checkbox
                   checked={filters[level]}
@@ -186,19 +185,26 @@ export const LogConsole = ({
             ))}
           </div>
 
-          <label className="flex items-center gap-2 text-xs cursor-pointer">
+          <label className="flex items-center gap-2 text-xs cursor-pointer select-none">
             <Switch checked={autoScroll} onCheckedChange={setAutoScroll} />
             Auto Scroll
           </label>
 
-          <AIHelpDialog title={title} logs={logs} />
+          <div className="select-none">
+            <AIHelpDialog title={title} logs={logs} />
+          </div>
         </div>
       </CardHeader>
 
       <CardContent className="p-0 relative">
         <ScrollArea style={{height}} viewportRef={viewportRef}>
-          <div className="p-3 space-y-0.5 text-xs">
-            <div className="flex justify-center mb-2">
+          <div
+            className={cn(
+              "p-3 space-y-0.5 text-xs select-text",
+              resizing && "select-none"
+            )}
+          >
+            <div className="flex justify-center mb-2 select-none">
               <button
                 onClick={loadMoreLogs}
                 className="text-xs px-3 py-1 rounded border bg-muted hover:bg-muted/70"
@@ -219,20 +225,19 @@ export const LogConsole = ({
 
         <div
           onMouseDown={(e) => {
-            e.preventDefault();
+            e.preventDefault(); // prevents text selection while resizing
             startYRef.current = e.clientY;
             startHeightRef.current = height;
             setResizing(true);
           }}
           className={cn(
-            "absolute bottom-0 left-0 right-0 h-2 flex justify-center items-center cursor-ns-resize border-t bg-muted/50 hover:bg-muted",
+            "absolute bottom-0 left-0 right-0 h-2 flex justify-center items-center cursor-ns-resize border-t bg-muted/50 hover:bg-muted select-none",
             resizing && "bg-primary/20",
           )}
         >
-          <GripHorizontal className="h-3 w-3 text-muted-foreground select-none pointer-events-none" />
+          <GripHorizontal className="h-3 w-3 text-muted-foreground pointer-events-none" />
         </div>
       </CardContent>
-
     </Card>
   );
 };
