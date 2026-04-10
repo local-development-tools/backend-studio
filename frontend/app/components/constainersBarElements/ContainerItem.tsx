@@ -1,12 +1,13 @@
-import { TriangleAlert } from "lucide-react";
+import { Loader2, Play, Square, TriangleAlert } from "lucide-react";
 import { cn } from "~/lib/utils";
 import type { ContainerDto } from "~/lib/api/containers";
 import { TooltipRoot, TooltipTrigger, TooltipContent } from "~/components/ui/tooltip";
+import { Button } from "~/components/ui/button";
 
 const StatusDot = ({ state }: { state: ContainerDto["state"] }) => {
   const colors = {
-    running: "bg-green-500",
-    exited: "bg-red-500",
+    running: "bg-gray-500",
+    exited: "bg-gray-500",
   };
 
   return (
@@ -17,9 +18,8 @@ const StatusDot = ({ state }: { state: ContainerDto["state"] }) => {
 interface ContainerItemProps {
   container: ContainerDto;
   stale?: boolean;
-  // onStart: (id: string) => void;
-  // onStop: (id: string) => void;
-  // onRestart: (id: string) => void;
+  busy?: boolean;
+  onToggleRunningState: () => void;
 }
 
 function stripStackPrefix(name: string, stack: string): string {
@@ -31,11 +31,11 @@ function stripStackPrefix(name: string, stack: string): string {
 export const ContainerItem = ({
   container,
   stale = false,
-  // onStart,
-  // onStop,
-  // onRestart,
+  busy = false,
+  onToggleRunningState,
 }: ContainerItemProps) => {
   const displayName = stripStackPrefix(container.names[0], container.stack);
+  const isRunning = container.state === "running";
 
   const card = (
     <div
@@ -52,6 +52,24 @@ export const ContainerItem = ({
       <div className="min-w-0">
         <p className="text-sm font-medium truncate">{displayName}</p>
       </div>
+
+      <Button
+        type="button"
+        size="xs"
+        variant={isRunning ? "destructive" : "secondary"}
+        className="ml-auto"
+        disabled={busy}
+        onClick={onToggleRunningState}
+      >
+        {busy ? (
+          <Loader2 className="h-3.5 w-3.5 animate-spin" />
+        ) : isRunning ? (
+          <Square className="h-3.5 w-3.5" />
+        ) : (
+          <Play className="h-3.5 w-3.5" />
+        )}
+        {isRunning ? "Stop" : "Start"}
+      </Button>
     </div>
   );
 

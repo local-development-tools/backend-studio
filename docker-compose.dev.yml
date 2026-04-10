@@ -1,4 +1,4 @@
-name: microservices-app-dev
+name: backend-studio-dev
 
 services:
   postgres:

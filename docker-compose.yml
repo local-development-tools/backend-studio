@@ -1,4 +1,4 @@
-name: microservices-app
+name: backend-studio
 
 services:
   backend:
@@ -6,7 +6,7 @@ services:
       context: ./backend
       dockerfile: Dockerfile
       target: dev
-    container_name: microservices-app-backend
+    container_name: backend-studio-backend
     env_file:
       - path: ./backend/.env
         required: false
@@ -32,7 +32,7 @@ services:
     build:
       context: ./frontend
       dockerfile: Dockerfile
-    container_name: microservices-app-frontend
+    container_name: backend-studio-frontend
     depends_on:
       - backend
     environment:

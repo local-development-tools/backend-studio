@@ -25,7 +25,7 @@ export const Sidebar = () => {
     >
       <div className="flex h-14 items-center justify-between border-sidebar-border px-3">
         {!collapsed && (
-          <span className="font-semibold text-sidebar-foreground">MS Tool</span>
+          <span className="font-semibold text-sidebar-foreground">BE Studio</span>
         )}
         <Button
           variant="ghost"
