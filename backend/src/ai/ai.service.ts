@@ -349,6 +349,8 @@ export class AiService {
       '- Use SELECT/INSERT/UPDATE/DELETE/DDL or CTE statements as needed.',
       '- Use only tables and columns present in schema.',
       '- If request cannot be answered from schema, return sql as empty string and explain why.',
+      '- Do not include any commentary in sql field, only the SQL statement itself.',
+      '- Return formatted SQL with proper indentation and line breaks for readability.',
       '- Respond in JSON only with shape: {"sql":"...","explanation":"..."}',
       `PostgreSQL schema (tables below belong to this schema): ${pgSchema}`,
       `Tables and columns:\n${schemaSummary}`,
