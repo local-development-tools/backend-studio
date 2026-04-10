@@ -4,6 +4,7 @@ import { Textarea } from "../ui/textarea";
 import { Copy, Sparkles, X } from "lucide-react";
 import { toast } from "sonner";
 import { generateSqlWithAi } from "~/lib/api/ai";
+import { formatSql } from "~/lib/sql/formatSql";
 
 interface AIHelpDialogProps {
   open: boolean;
@@ -41,7 +42,7 @@ export const AIHelpDialog = ({
       });
 
       if (ai.sql?.trim()) {
-        setResponse(ai.sql);
+        setResponse(formatSql(ai.sql));
         setResponseType("query");
       } else {
         setResponse(ai.explanation?.trim() || "AI could not generate a SQL query for this request.");
