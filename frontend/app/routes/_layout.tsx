@@ -7,18 +7,17 @@ import {
   type ContainerDto,
   type StackNameDto,
 } from "~/lib/api/containers";
-import { parseSSELog } from "~/lib/api/logs";
-import { TooltipProvider } from "~/components/ui/tooltip";
+import {parseSSELog} from "~/lib/api/logs";
+import {TooltipProvider} from "~/components/ui/tooltip";
 
 export default function Layout() {
   const [stacks, setStacks] = useState<StackNameDto[]>([]);
   const [selectedStack, setSelectedStack] = useState<StackNameDto>("");
+  const [openFolders, setOpenFolders] = useState<Record<string, boolean>>({});
 
   useEffect(() => {
     getStackNames().then((names) => setStacks(names));
   }, []);
-
-  
 
   return (
     <TooltipProvider delayDuration={300}>
@@ -31,7 +30,7 @@ export default function Layout() {
             setSelectedStack={setSelectedStack}
           />
           <div className="min-h-0 flex-1 overflow-hidden">
-            <Outlet context={{selectedStack}} />
+            <Outlet context={{selectedStack, openFolders, setOpenFolders}} />
           </div>
         </div>
       </div>

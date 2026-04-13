@@ -36,9 +36,15 @@ interface RequestsBarProps {
   selectedId: string | null;
   onAction?: (action: TreeAction) => void;
   refreshKey?: number;
+  openFolders: Record<string, boolean>;
 }
 
-export const RequestsBar = ({ selectedId, onAction, refreshKey}: RequestsBarProps) => {
+export const RequestsBar = ({
+  selectedId,
+  onAction,
+  refreshKey,
+  openFolders,
+}: RequestsBarProps) => {
   const [collections, setCollections] = useState<CollectionDto[]>([]);
   const [search, setSearch] = useState("");
   const [showModal, setShowModal] = useState(false);
@@ -103,6 +109,7 @@ export const RequestsBar = ({ selectedId, onAction, refreshKey}: RequestsBarProp
           selectedId={selectedId}
           onAction={onAction}
           refreshKey={refreshKey}
+          openFolders={openFolders ?? []}
         ></GenTree>
       </ScrollArea>
     </div>

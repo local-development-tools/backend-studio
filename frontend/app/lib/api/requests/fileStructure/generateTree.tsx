@@ -20,6 +20,7 @@ interface GenTreeProps {
   method?: HttpMethod;
   onAction?: (action: TreeAction) => void;
   refreshKey?: number;
+  openFolders: Record<string, boolean>;
 }
 
 export function GenTree({
@@ -30,13 +31,13 @@ export function GenTree({
   method,
   onAction,
   refreshKey,
+  openFolders,
 }: GenTreeProps) {
   const [collections, setCollections] = useState<CollectionDto[]>([]);
   const [folders, setFolders] = useState<FolderDto[]>([]);
   const [requestsGrpc, setrequestsGrpc] = useState<RequestDto[]>([]);
   const [requestsHttp, setrequestsHttp] = useState<RequestDto[]>([]);
 
-  // --- Fetch depending on type ---
   const fetchData = async () => {
     try {
       if (type === "root") {
@@ -44,18 +45,19 @@ export function GenTree({
         setCollections(data);
       } else if (type === "collection" && id) {
         const folderData = await getFoldersByCollection(id);
-        const filteredFolders = folderData.filter((folder) => !folder.parentFolderId && !folder.parentId);
+        const filteredFolders = folderData.filter(
+          (folder) => !folder.parentFolderId && !folder.parentId
+        );
         setFolders(filteredFolders);
 
         const requestData = await getRequestsByCollection(id);
-
         setrequestsHttp(requestData.filter((r) => r.type === "http"));
         setrequestsGrpc(requestData.filter((r) => r.type === "grpc"));
       } else if (type === "folder" && id) {
         const folderData = await getFoldersByFolder(id);
         setFolders(folderData);
-        const requestData = await getRequestsByFolder(id);
 
+        const requestData = await getRequestsByFolder(id);
         setrequestsHttp(requestData.filter((r) => r.type === "http"));
         setrequestsGrpc(requestData.filter((r) => r.type === "grpc"));
       }
@@ -64,17 +66,15 @@ export function GenTree({
     }
   };
 
-  // Initial + dependency-based fetch
   useEffect(() => {
     fetchData();
   }, [type, id]);
 
-  // 🔥 GLOBAL refresh trigger (runs on EVERY node)
   useEffect(() => {
     fetchData();
   }, [refreshKey]);
 
-  // --- Render tree ---
+  // --- ROOT ---
   if (type === "root") {
     return (
       <RequestTreeNode
@@ -82,6 +82,7 @@ export function GenTree({
         type="root"
         isSelected={false}
         onAction={onAction}
+        openFolders={openFolders}
       >
         {collections.map((collection) => (
           <GenTree
@@ -91,15 +92,18 @@ export function GenTree({
             name={collection.name}
             selectedId={selectedId}
             onAction={onAction}
-            refreshKey={refreshKey} // ✅ pass down
+            refreshKey={refreshKey}
+            openFolders={openFolders}   // ✅ FIX
           />
         ))}
       </RequestTreeNode>
     );
   }
 
+  // --- COLLECTION ---
   if (type === "collection") {
     if (!id) return null;
+
     return (
       <RequestTreeNode
         id={id}
@@ -108,6 +112,7 @@ export function GenTree({
         onClick={() => onAction?.({type: "select", id: `${id}`})}
         isSelected={false}
         onAction={onAction}
+        openFolders={openFolders}   // ✅ FIX
       >
         {folders.map((folder) => (
           <GenTree
@@ -117,7 +122,8 @@ export function GenTree({
             name={folder.name}
             selectedId={selectedId}
             onAction={onAction}
-            refreshKey={refreshKey} // ✅ pass down
+            refreshKey={refreshKey}
+            openFolders={openFolders}   // ✅ FIX
           />
         ))}
 
@@ -130,7 +136,8 @@ export function GenTree({
             method={req.method as HttpMethod}
             selectedId={selectedId}
             onAction={onAction}
-            refreshKey={refreshKey} // ✅ pass down
+            refreshKey={refreshKey}
+            openFolders={openFolders}   // (optional but consistent)
           />
         ))}
 
@@ -142,15 +149,18 @@ export function GenTree({
             name={req.name}
             selectedId={selectedId}
             onAction={onAction}
-            refreshKey={refreshKey} // ✅ pass down
+            refreshKey={refreshKey}
+            openFolders={openFolders}   // (optional but consistent)
           />
         ))}
       </RequestTreeNode>
     );
   }
 
+  // --- FOLDER ---
   if (type === "folder") {
     if (!id) return null;
+
     return (
       <RequestTreeNode
         id={id}
@@ -159,6 +169,7 @@ export function GenTree({
         onClick={() => onAction?.({type: "select", id: `${id}`})}
         isSelected={false}
         onAction={onAction}
+        openFolders={openFolders}   // ✅ FIX
       >
         {folders.map((folder) => (
           <GenTree
@@ -168,7 +179,8 @@ export function GenTree({
             name={folder.name}
             selectedId={selectedId}
             onAction={onAction}
-            refreshKey={refreshKey} // ✅ pass down
+            refreshKey={refreshKey}
+            openFolders={openFolders}   // ✅ FIX
           />
         ))}
 
@@ -181,7 +193,8 @@ export function GenTree({
             method={req.method as HttpMethod}
             selectedId={selectedId}
             onAction={onAction}
-            refreshKey={refreshKey} // ✅ pass down
+            refreshKey={refreshKey}
+            openFolders={openFolders}
           />
         ))}
 
@@ -193,15 +206,18 @@ export function GenTree({
             name={req.name}
             selectedId={selectedId}
             onAction={onAction}
-            refreshKey={refreshKey} // ✅ pass down
+            refreshKey={refreshKey}
+            openFolders={openFolders}
           />
         ))}
       </RequestTreeNode>
     );
   }
 
+  // --- REQUEST HTTP ---
   if (type === "requestHttp") {
     if (!id) return null;
+
     return (
       <RequestTreeNode
         id={id}
@@ -211,12 +227,15 @@ export function GenTree({
         isSelected={selectedId === id}
         method={method}
         onAction={onAction}
+        openFolders={openFolders}   // ✅ FIX
       />
     );
   }
 
+  // --- REQUEST GRPC ---
   if (type === "requestGrpc") {
     if (!id) return null;
+
     return (
       <RequestTreeNode
         id={id}
@@ -225,6 +244,7 @@ export function GenTree({
         onClick={() => onAction?.({type: "select", id: `${id}`})}
         isSelected={selectedId === id}
         onAction={onAction}
+        openFolders={openFolders}   // ✅ FIX
       />
     );
   }
