@@ -11,12 +11,15 @@ import {ContainerItem} from "./constainersBarElements/ContainerItem";
 import {
   controlContainerLifecycle,
   getContainersByStack,
+  getContainersWithoutStack,
   getStaleContainers,
   streamContainerLifecycle,
   type ContainerDto,
   type ContainerLifecycleEvent,
   type StackNameDto,
 } from "~/lib/api/containers";
+
+const OTHER_STACK_VALUE = "__other__";
 
 export interface Container {
   id: string;
@@ -42,32 +45,77 @@ export const ContainersBar = ({
   setSelectedStack,
 }: ContainersBarProps) => {
   const [expanded, setExpanded] = useState(true);
+  const [hasNoStackContainers, setHasNoStackContainers] = useState(false);
 
-  const stackNames = stacks;
+  const stackNames = hasNoStackContainers ? [...stacks, OTHER_STACK_VALUE] : stacks;
+  const isOtherSelected = selectedStack === OTHER_STACK_VALUE;
   const [currentContainers, setCurrentContainers] = useState<ContainerDto[]>([]);
   const [staleIds, setStaleIds] = useState<Set<string>>(new Set());
   const [pendingLifecycleIds, setPendingLifecycleIds] = useState<Set<string>>(new Set());
 
   useEffect(() => {
+    let cancelled = false;
+
+    getContainersWithoutStack()
+      .then((containers) => {
+        if (cancelled) return;
+        const hasContainers = containers.length > 0;
+        setHasNoStackContainers(hasContainers);
+
+        if (!hasContainers && selectedStack === OTHER_STACK_VALUE) {
+          setSelectedStack(stacks[0] ?? "");
+        }
+      })
+      .catch(() => {
+        if (cancelled) return;
+        setHasNoStackContainers(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [selectedStack, setSelectedStack, stacks]);
+
+  useEffect(() => {
     if (!selectedStack || selectedStack.trim() === "") return;
 
-    getContainersByStack(selectedStack).then((containers) => {
+    const loadContainers = isOtherSelected
+      ? getContainersWithoutStack()
+      : getContainersByStack(selectedStack);
+
+    loadContainers.then((containers) => {
       setCurrentContainers(containers);
+      if (isOtherSelected) {
+        setHasNoStackContainers(containers.length > 0);
+      }
     });
+
+    if (isOtherSelected) {
+      setStaleIds(new Set());
+      return;
+    }
 
     getStaleContainers(selectedStack)
       .then((results) => {
         setStaleIds(new Set(results.filter((r) => r.stale).map((r) => r.containerId)));
       })
       .catch(() => {});
-  }, [selectedStack]);
+  }, [isOtherSelected, selectedStack]);
 
   useEffect(() => {
     const toUiState = (state: string): ContainerDto["state"] =>
       state.toLowerCase() === "running" ? "running" : "exited";
 
     const isEventForSelectedStack = (event: ContainerLifecycleEvent): boolean => {
-      if (!event.stack || !selectedStack) {
+      if (!selectedStack) {
+        return false;
+      }
+
+      if (selectedStack === OTHER_STACK_VALUE) {
+        return !event.stack || event.stack.trim() === "";
+      }
+
+      if (!event.stack) {
         return false;
       }
 
@@ -113,7 +161,7 @@ export const ContainersBar = ({
               id: event.id,
               names: event.names?.length ? event.names : [event.id],
               state: nextState,
-              stack: event.stack ?? selectedStack,
+              stack: event.stack ?? "",
             },
           ];
         }
@@ -144,8 +192,19 @@ export const ContainersBar = ({
       return [];
     }
 
-    const containers = await getContainersByStack(selectedStack);
+    const containers = isOtherSelected
+      ? await getContainersWithoutStack()
+      : await getContainersByStack(selectedStack);
     setCurrentContainers(containers);
+
+    if (isOtherSelected) {
+      setStaleIds(new Set());
+      setHasNoStackContainers(containers.length > 0);
+      if (containers.length === 0) {
+        setSelectedStack(stacks[0] ?? "");
+      }
+    }
+
     return containers;
   };
 
@@ -226,7 +285,7 @@ export const ContainersBar = ({
           <TabsList variant="line" className="justify-start overflow-x-auto">
             {stackNames.map((stack) => (
               <TabsTrigger key={stack} value={stack}>
-                {stack}
+                {stack === OTHER_STACK_VALUE ? "other" : stack}
               </TabsTrigger>
             ))}
           </TabsList>
@@ -250,7 +309,9 @@ export const ContainersBar = ({
 
             {currentContainers.length === 0 && (
               <p className="text-sm text-muted-foreground">
-                No containers in this stack.
+                {isOtherSelected
+                  ? "No containers without stack."
+                  : "No containers in this stack."}
               </p>
             )}
           </TabsContent>

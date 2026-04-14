@@ -6,10 +6,13 @@ import { useEffect, useRef, useState } from "react";
 import { cn } from "~/lib/utils";
 import {
   getContainersByStack,
+  getContainersWithoutStack,
   streamContainerLifecycle,
   type ContainerDto,
   type StackNameDto,
 } from "~/lib/api/containers";
+
+const OTHER_STACK_VALUE = "__other__";
 
 type LayoutContext = {
   selectedStack: StackNameDto;
@@ -19,6 +22,7 @@ const orderKey = (stack: string) => `logs-container-order:${stack}`;
 
 export default function Logs() {
   const { selectedStack } = useOutletContext<LayoutContext>();
+  const isOtherSelected = selectedStack === OTHER_STACK_VALUE;
   const [currentContainers, setCurrentContainers] = useState<ContainerDto[]>([]);
   const [containerOrder, setContainerOrder] = useState<string[]>([]);
   const [dragOverId, setDragOverId] = useState<string | null>(null);
@@ -27,10 +31,14 @@ export default function Logs() {
   useEffect(() => {
     if (!selectedStack || selectedStack.trim() === "") return;
 
-    getContainersByStack(selectedStack).then((containers) => {
+    const loadContainers = isOtherSelected
+      ? getContainersWithoutStack()
+      : getContainersByStack(selectedStack);
+
+    loadContainers.then((containers) => {
       setCurrentContainers(containers);
     });
-  }, [selectedStack]);
+  }, [isOtherSelected, selectedStack]);
 
   // Merge newly discovered containers into the persisted order.
   useEffect(() => {
@@ -56,7 +64,11 @@ export default function Logs() {
       state.toLowerCase() === "running" ? "running" : "exited";
 
     const source = streamContainerLifecycle((event) => {
-      if (!event.stack || event.stack !== selectedStack) return;
+      if (isOtherSelected) {
+        if (event.stack && event.stack.trim() !== "") return;
+      } else if (!event.stack || event.stack !== selectedStack) {
+        return;
+      }
 
       const nextState = toUiState(event.state);
 
@@ -90,7 +102,7 @@ export default function Logs() {
               id: event.id,
               names: event.names?.length ? event.names : [event.id],
               state: nextState,
-              stack: event.stack ?? selectedStack,
+              stack: event.stack ?? "",
             },
           ];
         }
@@ -102,7 +114,7 @@ export default function Logs() {
     return () => {
       source.close();
     };
-  }, [selectedStack]);
+  }, [isOtherSelected, selectedStack]);
 
   const orderedContainers = containerOrder
     .map((id) => currentContainers.find((c) => c.id === id))
