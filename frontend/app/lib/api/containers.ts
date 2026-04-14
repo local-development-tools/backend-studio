@@ -22,6 +22,19 @@ export interface ContainerLifecycleEvent {
   timestamp: string;
 }
 
+export type ContainerLifecycleAction =
+  | "start"
+  | "stop"
+  | "restart"
+  | "pause"
+  | "unpause"
+  | "kill";
+
+export interface ControlContainerLifecycleResponse {
+  action: ContainerLifecycleAction;
+  container: ContainerDto;
+}
+
 // --- API functions ---
 export function getContainers(): Promise<ContainerDto[]> {
   return fetch(`${API_BASE_URL}/containers`).then((res) => {
@@ -107,4 +120,19 @@ export function streamContainerLifecycle(
   };
 
   return sse;
+}
+
+export function controlContainerLifecycle(
+  containerId: string,
+  action: "start" | "stop",
+): Promise<ControlContainerLifecycleResponse> {
+  return fetch(`${API_BASE_URL}/containers/${containerId}/lifecycle/${action}`, {
+    method: "POST",
+  }).then((res) => {
+    if (!res.ok) {
+      throw new Error(`Failed to ${action} container`);
+    }
+
+    return res.json() as Promise<ControlContainerLifecycleResponse>;
+  });
 }

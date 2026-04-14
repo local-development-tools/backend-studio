@@ -1,10 +1,5 @@
 import {useEffect, useState} from "react";
 import {
-  Sun,
-  Moon,
-  Play,
-  Square,
-  RotateCcw,
   ChevronDown,
   ChevronUp,
 } from "lucide-react";
@@ -14,13 +9,17 @@ import {toast} from "sonner";
 import {Tabs, TabsContent, TabsList, TabsTrigger} from "./ui/tabs";
 import {ContainerItem} from "./constainersBarElements/ContainerItem";
 import {
+  controlContainerLifecycle,
   getContainersByStack,
+  getContainersWithoutStack,
   getStaleContainers,
   streamContainerLifecycle,
   type ContainerDto,
   type ContainerLifecycleEvent,
   type StackNameDto,
 } from "~/lib/api/containers";
+
+const OTHER_STACK_VALUE = "__other__";
 
 export interface Container {
   id: string;
@@ -46,31 +45,77 @@ export const ContainersBar = ({
   setSelectedStack,
 }: ContainersBarProps) => {
   const [expanded, setExpanded] = useState(true);
+  const [hasNoStackContainers, setHasNoStackContainers] = useState(false);
 
-  const stackNames = stacks;
+  const stackNames = hasNoStackContainers ? [...stacks, OTHER_STACK_VALUE] : stacks;
+  const isOtherSelected = selectedStack === OTHER_STACK_VALUE;
   const [currentContainers, setCurrentContainers] = useState<ContainerDto[]>([]);
   const [staleIds, setStaleIds] = useState<Set<string>>(new Set());
+  const [pendingLifecycleIds, setPendingLifecycleIds] = useState<Set<string>>(new Set());
+
+  useEffect(() => {
+    let cancelled = false;
+
+    getContainersWithoutStack()
+      .then((containers) => {
+        if (cancelled) return;
+        const hasContainers = containers.length > 0;
+        setHasNoStackContainers(hasContainers);
+
+        if (!hasContainers && selectedStack === OTHER_STACK_VALUE) {
+          setSelectedStack(stacks[0] ?? "");
+        }
+      })
+      .catch(() => {
+        if (cancelled) return;
+        setHasNoStackContainers(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [selectedStack, setSelectedStack, stacks]);
 
   useEffect(() => {
     if (!selectedStack || selectedStack.trim() === "") return;
 
-    getContainersByStack(selectedStack).then((containers) => {
+    const loadContainers = isOtherSelected
+      ? getContainersWithoutStack()
+      : getContainersByStack(selectedStack);
+
+    loadContainers.then((containers) => {
       setCurrentContainers(containers);
+      if (isOtherSelected) {
+        setHasNoStackContainers(containers.length > 0);
+      }
     });
+
+    if (isOtherSelected) {
+      setStaleIds(new Set());
+      return;
+    }
 
     getStaleContainers(selectedStack)
       .then((results) => {
         setStaleIds(new Set(results.filter((r) => r.stale).map((r) => r.containerId)));
       })
       .catch(() => {});
-  }, [selectedStack]);
+  }, [isOtherSelected, selectedStack]);
 
   useEffect(() => {
     const toUiState = (state: string): ContainerDto["state"] =>
       state.toLowerCase() === "running" ? "running" : "exited";
 
     const isEventForSelectedStack = (event: ContainerLifecycleEvent): boolean => {
-      if (!event.stack || !selectedStack) {
+      if (!selectedStack) {
+        return false;
+      }
+
+      if (selectedStack === OTHER_STACK_VALUE) {
+        return !event.stack || event.stack.trim() === "";
+      }
+
+      if (!event.stack) {
         return false;
       }
 
@@ -116,7 +161,7 @@ export const ContainersBar = ({
               id: event.id,
               names: event.names?.length ? event.names : [event.id],
               state: nextState,
-              stack: event.stack ?? selectedStack,
+              stack: event.stack ?? "",
             },
           ];
         }
@@ -135,43 +180,80 @@ export const ContainersBar = ({
   //   currentContainers = currentContainers ?? [];
   // });
 
-  const updateContainer = (
-    id: string,
-    updater: (c: Container) => Container,
-  ) => {
-    // setStacks((prev) =>
-    //   Object.fromEntries(
-    //     Object.entries(prev).map(([stackName, containers]) => [
-    //       stackName,
-    //       containers.map((c) => (c.id === id ? updater(c) : c)),
-    //     ]),
-    //   ),
-    // );
+  const isSameContainer = (a: string, b: string): boolean => {
+    return a === b || a.startsWith(b) || b.startsWith(a);
   };
 
-  const handleStart = (id: string) => {
-    // updateContainer(id, (c) => ({...c, status: "running", health: "starting"}));
-    // toast.success("Container starting...");
-    // setTimeout(() => {
-    //   updateContainer(id, (c) => ({...c, health: "healthy"}));
-    // }, 2000);
+  const toUiState = (state: string): ContainerDto["state"] =>
+    state.toLowerCase() === "running" ? "running" : "exited";
+
+  const refreshContainersForSelectedStack = async (): Promise<ContainerDto[]> => {
+    if (!selectedStack || selectedStack.trim() === "") {
+      return [];
+    }
+
+    const containers = isOtherSelected
+      ? await getContainersWithoutStack()
+      : await getContainersByStack(selectedStack);
+    setCurrentContainers(containers);
+
+    if (isOtherSelected) {
+      setStaleIds(new Set());
+      setHasNoStackContainers(containers.length > 0);
+      if (containers.length === 0) {
+        setSelectedStack(stacks[0] ?? "");
+      }
+    }
+
+    return containers;
   };
 
-  const handleStop = (id: string) => {
-    // updateContainer(id, (c) => ({...c, status: "stopped", health: "none"}));
-    // toast.info("Container stopped");
-  };
+  const handleToggleContainerState = async (container: ContainerDto) => {
+    if (pendingLifecycleIds.has(container.id)) {
+      return;
+    }
 
-  const handleRestart = (id: string) => {
-    // updateContainer(id, (c) => ({...c, health: "starting"}));
-    // toast.success("Container restarting...");
-    // setTimeout(() => {
-    //   updateContainer(id, (c) => ({
-    //     ...c,
-    //     status: "running",
-    //     health: "healthy",
-    //   }));
-    // }, 2000);
+    setPendingLifecycleIds((prev) => {
+      const next = new Set(prev);
+      next.add(container.id);
+      return next;
+    });
+
+    try {
+      const latestContainers = await refreshContainersForSelectedStack();
+      const latestContainer = latestContainers.find((item) =>
+        isSameContainer(item.id, container.id),
+      ) ?? container;
+
+      const action = latestContainer.state === "running" ? "stop" : "start";
+      const result = await controlContainerLifecycle(container.id, action);
+      const nextState = toUiState(result.container.state);
+
+      setCurrentContainers((prev) =>
+        prev.map((item) => {
+          if (!isSameContainer(item.id, container.id)) {
+            return item;
+          }
+
+          return {
+            ...item,
+            state: nextState,
+          };
+        }),
+      );
+
+      toast.success(`Container ${action} requested`);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Failed to update container state");
+    } finally {
+      setPendingLifecycleIds((prev) => {
+        const next = new Set(prev);
+        next.delete(container.id);
+        return next;
+      });
+
+      void refreshContainersForSelectedStack().catch(() => {});
+    }
   };
 
   return (
@@ -203,7 +285,7 @@ export const ContainersBar = ({
           <TabsList variant="line" className="justify-start overflow-x-auto">
             {stackNames.map((stack) => (
               <TabsTrigger key={stack} value={stack}>
-                {stack}
+                {stack === OTHER_STACK_VALUE ? "other" : stack}
               </TabsTrigger>
             ))}
           </TabsList>
@@ -220,15 +302,16 @@ export const ContainersBar = ({
                 key={container.id}
                 container={container}
                 stale={staleIds.has(container.id)}
-                // onStart={handleStart}
-                // onStop={handleStop}
-                // onRestart={handleRestart}
+                busy={pendingLifecycleIds.has(container.id)}
+                onToggleRunningState={() => handleToggleContainerState(container)}
               />
             ))}
 
             {currentContainers.length === 0 && (
               <p className="text-sm text-muted-foreground">
-                No containers in this stack.
+                {isOtherSelected
+                  ? "No containers without stack."
+                  : "No containers in this stack."}
               </p>
             )}
           </TabsContent>
