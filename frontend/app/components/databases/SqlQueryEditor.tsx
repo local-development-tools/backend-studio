@@ -3,6 +3,7 @@ import { Button } from "../ui/button";
 import { Textarea } from "../ui/textarea";
 import { BookmarkPlus, PanelRight, Play } from "lucide-react";
 import { AIHelpDialog } from "./AIHelpDialog";
+import { formatSql } from "~/lib/sql/formatSql";
 
 interface SqlQueryEditorProps {
   value: string;
@@ -32,8 +33,7 @@ export const SqlQueryEditor = ({
 
   const handleAIResponse = (response: string, isQuery: boolean) => {
     if (isQuery) {
-      // If it's a query, set it as the current query
-      onChange(response);
+      onChange(formatSql(response));
     }
     setAiHelpOpen(false);
   };
