@@ -1,6 +1,6 @@
 import {useState, useCallback, useEffect} from "react";
 import type {Route} from "./+types/requests";
-
+import {useOutletContext} from "react-router";
 import {
   ResizableHandle,
   ResizablePanel,
@@ -91,6 +91,8 @@ export function meta({}: Route.MetaArgs) {
 
 export type TreeAction =
   | {type: "select"; id: string}
+  | {type: "forceRefreshTree"}
+  | {type: "updateColapseStates"; id: string; isOpen: boolean}
   | {type: "createCollection"} //name given via modal
   | {type: "deleteCollection"; id: string}
   | {type: "updateCollection"; id: string}
@@ -518,6 +520,10 @@ export default function Requests() {
 
   const handleTreeAction = (action: TreeAction) => {
     switch (action.type) {
+      case "forceRefreshTree":
+        setRefreshKey((prev) => prev + 1);
+        break;
+
       case "select":
         setSelectedId(action.id);
         setResponse(null);

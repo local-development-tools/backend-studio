@@ -36,7 +36,6 @@ export function GenTree({
   const [requestsGrpc, setrequestsGrpc] = useState<RequestDto[]>([]);
   const [requestsHttp, setrequestsHttp] = useState<RequestDto[]>([]);
 
-  // --- Fetch depending on type ---
   const fetchData = async () => {
     try {
       if (type === "root") {
@@ -44,18 +43,19 @@ export function GenTree({
         setCollections(data);
       } else if (type === "collection" && id) {
         const folderData = await getFoldersByCollection(id);
-        const filteredFolders = folderData.filter((folder) => !folder.parentFolderId && !folder.parentId);
+        const filteredFolders = folderData.filter(
+          (folder) => !folder.parentFolderId && !folder.parentId
+        );
         setFolders(filteredFolders);
 
         const requestData = await getRequestsByCollection(id);
-
         setrequestsHttp(requestData.filter((r) => r.type === "http"));
         setrequestsGrpc(requestData.filter((r) => r.type === "grpc"));
       } else if (type === "folder" && id) {
         const folderData = await getFoldersByFolder(id);
         setFolders(folderData);
-        const requestData = await getRequestsByFolder(id);
 
+        const requestData = await getRequestsByFolder(id);
         setrequestsHttp(requestData.filter((r) => r.type === "http"));
         setrequestsGrpc(requestData.filter((r) => r.type === "grpc"));
       }
@@ -64,17 +64,15 @@ export function GenTree({
     }
   };
 
-  // Initial + dependency-based fetch
   useEffect(() => {
     fetchData();
   }, [type, id]);
 
-  // 🔥 GLOBAL refresh trigger (runs on EVERY node)
   useEffect(() => {
     fetchData();
   }, [refreshKey]);
 
-  // --- Render tree ---
+  // --- ROOT ---
   if (type === "root") {
     return (
       <RequestTreeNode
@@ -91,15 +89,17 @@ export function GenTree({
             name={collection.name}
             selectedId={selectedId}
             onAction={onAction}
-            refreshKey={refreshKey} // ✅ pass down
+            refreshKey={refreshKey}
           />
         ))}
       </RequestTreeNode>
     );
   }
 
+  // --- COLLECTION ---
   if (type === "collection") {
     if (!id) return null;
+
     return (
       <RequestTreeNode
         id={id}
@@ -117,7 +117,7 @@ export function GenTree({
             name={folder.name}
             selectedId={selectedId}
             onAction={onAction}
-            refreshKey={refreshKey} // ✅ pass down
+            refreshKey={refreshKey}
           />
         ))}
 
@@ -130,7 +130,7 @@ export function GenTree({
             method={req.method as HttpMethod}
             selectedId={selectedId}
             onAction={onAction}
-            refreshKey={refreshKey} // ✅ pass down
+            refreshKey={refreshKey}
           />
         ))}
 
@@ -142,15 +142,17 @@ export function GenTree({
             name={req.name}
             selectedId={selectedId}
             onAction={onAction}
-            refreshKey={refreshKey} // ✅ pass down
+            refreshKey={refreshKey}
           />
         ))}
       </RequestTreeNode>
     );
   }
 
+  // --- FOLDER ---
   if (type === "folder") {
     if (!id) return null;
+
     return (
       <RequestTreeNode
         id={id}
@@ -168,7 +170,7 @@ export function GenTree({
             name={folder.name}
             selectedId={selectedId}
             onAction={onAction}
-            refreshKey={refreshKey} // ✅ pass down
+            refreshKey={refreshKey}
           />
         ))}
 
@@ -181,7 +183,7 @@ export function GenTree({
             method={req.method as HttpMethod}
             selectedId={selectedId}
             onAction={onAction}
-            refreshKey={refreshKey} // ✅ pass down
+            refreshKey={refreshKey}
           />
         ))}
 
@@ -193,15 +195,17 @@ export function GenTree({
             name={req.name}
             selectedId={selectedId}
             onAction={onAction}
-            refreshKey={refreshKey} // ✅ pass down
+            refreshKey={refreshKey}
           />
         ))}
       </RequestTreeNode>
     );
   }
 
+  // --- REQUEST HTTP ---
   if (type === "requestHttp") {
     if (!id) return null;
+
     return (
       <RequestTreeNode
         id={id}
@@ -215,8 +219,10 @@ export function GenTree({
     );
   }
 
+  // --- REQUEST GRPC ---
   if (type === "requestGrpc") {
     if (!id) return null;
+
     return (
       <RequestTreeNode
         id={id}
