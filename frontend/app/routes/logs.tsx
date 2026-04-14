@@ -1,9 +1,9 @@
-import { GripVertical, LayoutDashboard, LayoutGrid, Rows2 } from "lucide-react";
-import { useOutletContext } from "react-router";
-import { LogConsole } from "~/components/logs/LogConsole";
-import { ToggleGroup, ToggleGroupItem } from "~/components/ui/toggle-group";
-import { useEffect, useRef, useState } from "react";
-import { cn } from "~/lib/utils";
+import {GripVertical, LayoutDashboard, LayoutGrid, Rows2} from "lucide-react";
+import {useOutletContext} from "react-router";
+import {LogConsole} from "~/components/logs/LogConsole";
+import {ToggleGroup, ToggleGroupItem} from "~/components/ui/toggle-group";
+import {useEffect, useRef, useState} from "react";
+import {cn} from "~/lib/utils";
 import {
   getContainersByStack,
   getContainersWithoutStack,
@@ -56,7 +56,10 @@ export default function Logs() {
   // Persist order changes.
   useEffect(() => {
     if (!selectedStack || containerOrder.length === 0) return;
-    localStorage.setItem(orderKey(selectedStack), JSON.stringify(containerOrder));
+    localStorage.setItem(
+      orderKey(selectedStack),
+      JSON.stringify(containerOrder),
+    );
   }, [containerOrder, selectedStack]);
 
   useEffect(() => {
@@ -152,12 +155,15 @@ export default function Logs() {
     setDragOverId(null);
   };
 
-  const draggable = (container: ContainerDto) => ({
+  const dragHandle = (container: ContainerDto) => ({
     draggable: true as const,
     onDragStart: () => handleDragStart(container.id),
+    onDragEnd: handleDragEnd,
+  });
+
+  const dropZone = (container: ContainerDto) => ({
     onDragOver: (e: React.DragEvent) => handleDragOver(e, container.id),
     onDrop: () => handleDrop(container.id),
-    onDragEnd: handleDragEnd,
   });
 
   const [layout, setLayout] = useState<
@@ -192,16 +198,26 @@ export default function Logs() {
             {orderedContainers.map((container) => (
               <div
                 key={container.id}
-                {...draggable(container)}
+                {...dropZone(container)}
                 className={cn(
                   "group relative transition-opacity",
-                  dragOverId === container.id && dragItemId.current !== container.id && "opacity-50",
+                  dragOverId === container.id &&
+                    dragItemId.current !== container.id &&
+                    "opacity-50",
                 )}
               >
-                <div className="absolute left-0 top-0 bottom-0 w-5 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity cursor-grab active:cursor-grabbing z-10">
+                <div
+                  {...dragHandle(container)}
+                  onMouseDown={(e) => e.stopPropagation()}
+                  className="absolute left-0 top-0 bottom-0 w-5 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity cursor-grab active:cursor-grabbing z-10"
+                >
                   <GripVertical className="h-4 w-4 text-muted-foreground" />
                 </div>
-                <LogConsole containerId={container.id} title={container.names[0]} />
+
+                <LogConsole
+                  containerId={container.id}
+                  title={container.names[0]}
+                />
               </div>
             ))}
           </div>
@@ -212,16 +228,26 @@ export default function Logs() {
             {orderedContainers.map((container) => (
               <div
                 key={container.id}
-                {...draggable(container)}
+                {...dropZone(container)}
                 className={cn(
                   "group relative transition-opacity",
-                  dragOverId === container.id && dragItemId.current !== container.id && "opacity-50",
+                  dragOverId === container.id &&
+                    dragItemId.current !== container.id &&
+                    "opacity-50",
                 )}
               >
-                <div className="absolute left-0 top-0 bottom-0 w-5 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity cursor-grab active:cursor-grabbing z-10">
+                <div
+                  {...dragHandle(container)}
+                  onMouseDown={(e) => e.stopPropagation()}
+                  className="absolute left-0 top-0 bottom-0 w-5 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity cursor-grab active:cursor-grabbing z-10"
+                >
                   <GripVertical className="h-4 w-4 text-muted-foreground" />
                 </div>
-                <LogConsole containerId={container.id} title={container.names[0]} />
+
+                <LogConsole
+                  containerId={container.id}
+                  title={container.names[0]}
+                />
               </div>
             ))}
           </div>
@@ -230,39 +256,63 @@ export default function Logs() {
         {layout === "double_column" && (
           <div className="flex">
             <div className="w-full mr-2 flex flex-col gap-2">
-              {orderedContainers.filter((_, i) => i % 2 === 0).map((container) => (
-                <div
-                  key={container.id}
-                  {...draggable(container)}
-                  className={cn(
-                    "group relative transition-opacity",
-                    dragOverId === container.id && dragItemId.current !== container.id && "opacity-50",
-                  )}
-                >
-                  <div className="absolute left-0 top-0 bottom-0 w-5 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity cursor-grab active:cursor-grabbing z-10">
-                    <GripVertical className="h-4 w-4 text-muted-foreground" />
+              {orderedContainers
+                .filter((_, i) => i % 2 === 0)
+                .map((container) => (
+                  <div
+                    key={container.id}
+                    {...dropZone(container)}
+                    className={cn(
+                      "group relative transition-opacity",
+                      dragOverId === container.id &&
+                        dragItemId.current !== container.id &&
+                        "opacity-50",
+                    )}
+                  >
+                    <div
+                      {...dragHandle(container)}
+                      onMouseDown={(e) => e.stopPropagation()}
+                      className="absolute left-0 top-0 bottom-0 w-5 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity cursor-grab active:cursor-grabbing z-10"
+                    >
+                      <GripVertical className="h-4 w-4 text-muted-foreground" />
+                    </div>
+
+                    <LogConsole
+                      containerId={container.id}
+                      title={container.names[0]}
+                    />
                   </div>
-                  <LogConsole containerId={container.id} title={container.names[0]} />
-                </div>
-              ))}
+                ))}
             </div>
 
             <div className="w-full flex flex-col gap-2">
-              {orderedContainers.filter((_, i) => i % 2 !== 0).map((container) => (
-                <div
-                  key={container.id}
-                  {...draggable(container)}
-                  className={cn(
-                    "group relative transition-opacity",
-                    dragOverId === container.id && dragItemId.current !== container.id && "opacity-50",
-                  )}
-                >
-                  <div className="absolute left-0 top-0 bottom-0 w-5 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity cursor-grab active:cursor-grabbing z-10">
-                    <GripVertical className="h-4 w-4 text-muted-foreground" />
+              {orderedContainers
+                .filter((_, i) => i % 2 !== 0)
+                .map((container) => (
+                  <div
+                    key={container.id}
+                    {...dropZone(container)}
+                    className={cn(
+                      "group relative transition-opacity",
+                      dragOverId === container.id &&
+                        dragItemId.current !== container.id &&
+                        "opacity-50",
+                    )}
+                  >
+                    <div
+                      {...dragHandle(container)}
+                      onMouseDown={(e) => e.stopPropagation()}
+                      className="absolute left-0 top-0 bottom-0 w-5 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity cursor-grab active:cursor-grabbing z-10"
+                    >
+                      <GripVertical className="h-4 w-4 text-muted-foreground" />
+                    </div>
+
+                    <LogConsole
+                      containerId={container.id}
+                      title={container.names[0]}
+                    />
                   </div>
-                  <LogConsole containerId={container.id} title={container.names[0]} />
-                </div>
-              ))}
+                ))}
             </div>
           </div>
         )}

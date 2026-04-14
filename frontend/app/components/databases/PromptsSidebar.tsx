@@ -9,6 +9,7 @@ import {
   type AiPromptDetail,
   type AiPromptListItem,
 } from "~/lib/api/ai";
+import { formatSql } from "~/lib/sql/formatSql";
 
 interface PromptsSidebarProps {
   open: boolean;
@@ -90,25 +91,25 @@ export const PromptsSidebar = ({
     void loadDetail();
   }, [open, selectedFile]);
 
+  const formattedSql = detail?.sql ? formatSql(detail.sql) : "";
+
   const handleCopySql = async () => {
-    const sql = detail?.sql?.trim();
-    if (!sql) {
+    if (!formattedSql) {
       toast.error("No SQL available in this prompt");
       return;
     }
 
-    await navigator.clipboard.writeText(sql);
+    await navigator.clipboard.writeText(formattedSql);
     toast.success("SQL copied");
   };
 
   const handlePasteSql = () => {
-    const sql = detail?.sql?.trim();
-    if (!sql) {
+    if (!formattedSql) {
       toast.error("No SQL available in this prompt");
       return;
     }
 
-    onPasteSql(sql);
+    onPasteSql(formattedSql);
     toast.success("SQL pasted into editor");
   };
 
@@ -199,7 +200,7 @@ export const PromptsSidebar = ({
                   <div>
                     <p className="text-xs text-muted-foreground uppercase">SQL</p>
                     <pre className="mt-1 rounded border border-border bg-muted/20 p-2 text-xs whitespace-pre-wrap break-words">
-                      {detail.sql || "(no SQL in this entry)"}
+                      {formattedSql || "(no SQL in this entry)"}
                     </pre>
                   </div>
                   {detail.explanation && (
