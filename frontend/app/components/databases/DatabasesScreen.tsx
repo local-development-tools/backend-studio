@@ -27,6 +27,8 @@ import {
 
 const STORAGE_KEY = "defaultDatabase";
 const SCHEMA_STORAGE_KEY = "defaultSchema";
+const TABLE_SELECTION_STORAGE_KEY = "databaseViewer.tableSelection.v1";
+const QUERY_DRAFT_STORAGE_KEY = "databaseViewer.queryDrafts.v1";
 const TABLE_DISPLAY_STORAGE_KEY = "databaseViewer.tableDisplayPrefs.v1";
 const DEFAULT_FONT_SCALE = 100;
 const MIN_FONT_SCALE = 85;
@@ -39,9 +41,17 @@ interface TableDisplayPreference {
 }
 
 type TableDisplayPreferenceMap = Record<string, TableDisplayPreference>;
+type TableSelectionMap = Record<string, string>;
+type QueryDraftMap = Record<string, string>;
 
 const getTablePreferenceKey = (database: string, schema: string, table?: string) =>
   `${database || "__no_db__"}::${schema || "public"}::${table || "__ad_hoc__"}`;
+
+const getTableSelectionKey = (database: string, schema: string) =>
+  `${database || "__no_db__"}::${schema || "public"}`;
+
+const getQueryDraftKey = (database: string, schema: string) =>
+  `${database || "__no_db__"}::${schema || "public"}`;
 
 const sanitizeFontScale = (value: number) =>
   Math.min(MAX_FONT_SCALE, Math.max(MIN_FONT_SCALE, value));
@@ -57,6 +67,64 @@ const loadTableDisplayPreferences = (): TableDisplayPreferenceMap => {
     return parsed;
   } catch {
     return {};
+  }
+};
+
+const loadTableSelections = (): TableSelectionMap => {
+  try {
+    const raw = localStorage.getItem(TABLE_SELECTION_STORAGE_KEY);
+    if (!raw) return {};
+
+    const parsed = JSON.parse(raw) as TableSelectionMap;
+    if (!parsed || typeof parsed !== "object") return {};
+
+    return parsed;
+  } catch {
+    return {};
+  }
+};
+
+const getPersistedTableSelection = (database: string, schema: string) => {
+  const selections = loadTableSelections();
+  return selections[getTableSelectionKey(database, schema)] ?? "";
+};
+
+const saveTableSelection = (database: string, schema: string, table: string) => {
+  try {
+    const selections = loadTableSelections();
+    selections[getTableSelectionKey(database, schema)] = table;
+    localStorage.setItem(TABLE_SELECTION_STORAGE_KEY, JSON.stringify(selections));
+  } catch {
+    // Ignore persistence errors.
+  }
+};
+
+const loadQueryDrafts = (): QueryDraftMap => {
+  try {
+    const raw = localStorage.getItem(QUERY_DRAFT_STORAGE_KEY);
+    if (!raw) return {};
+
+    const parsed = JSON.parse(raw) as QueryDraftMap;
+    if (!parsed || typeof parsed !== "object") return {};
+
+    return parsed;
+  } catch {
+    return {};
+  }
+};
+
+const getPersistedQueryDraft = (database: string, schema: string) => {
+  const drafts = loadQueryDrafts();
+  return drafts[getQueryDraftKey(database, schema)] ?? "";
+};
+
+const saveQueryDraft = (database: string, schema: string, query: string) => {
+  try {
+    const drafts = loadQueryDrafts();
+    drafts[getQueryDraftKey(database, schema)] = query;
+    localStorage.setItem(QUERY_DRAFT_STORAGE_KEY, JSON.stringify(drafts));
+  } catch {
+    // Ignore persistence errors.
   }
 };
 
@@ -107,28 +175,66 @@ export const DatabasesScreen = () => {
     });
   };
 
+  const setSqlQueryWithPersistence = (
+    nextSql: string,
+    schema = selectedSchema,
+    database = selectedDatabase,
+  ) => {
+    setSqlQuery(nextSql);
+    if (!database) return;
+    saveQueryDraft(database, schema, nextSql);
+  };
+
   const loadTablesForDatabase = async (
     database: string,
-    options?: { resetSelection?: boolean; schema?: string },
+    options?: {
+      resetSelection?: boolean;
+      schema?: string;
+      restorePersistedSelection?: boolean;
+    },
   ) => {
     const resetSelection = options?.resetSelection ?? false;
     const schema = options?.schema ?? selectedSchema;
+    const restorePersistedSelection = options?.restorePersistedSelection ?? false;
 
     setIsLoadingTables(true);
     try {
       const tableList = await getTables(database, schema);
+      const availableTableNames = new Set(tableList.map((table) => table.name));
+
+      const persistedSelection = restorePersistedSelection
+        ? getPersistedTableSelection(database, schema)
+        : "";
+      const persistedQueryDraft = restorePersistedSelection
+        ? getPersistedQueryDraft(database, schema)
+        : "";
+      const hasPersistedQueryDraft = persistedQueryDraft.trim().length > 0;
 
       let nextSelectedTable = selectedTable;
       if (resetSelection) {
+        nextSelectedTable = persistedSelection;
+      }
+
+      if (nextSelectedTable && !availableTableNames.has(nextSelectedTable)) {
+        nextSelectedTable = "";
+      }
+
+      if (!resetSelection && selectedTable && !availableTableNames.has(selectedTable)) {
         nextSelectedTable = "";
         setSelectedTable("");
         setQueryResults(null);
         setPrimaryKey("id");
       }
 
-      if (nextSelectedTable && !tableList.some((table) => table.name === nextSelectedTable)) {
-        nextSelectedTable = "";
+      const shouldRestoreSelection =
+        resetSelection && restorePersistedSelection && !!nextSelectedTable && !hasPersistedQueryDraft;
+
+      if (resetSelection && !nextSelectedTable) {
         setSelectedTable("");
+        setQueryResults(null);
+        setPrimaryKey("id");
+      } else if (nextSelectedTable !== selectedTable) {
+        setSelectedTable(nextSelectedTable);
       }
 
       let nextTables = tableList;
@@ -146,6 +252,15 @@ export const DatabasesScreen = () => {
       }
 
       setTables([...nextTables].sort((a, b) => a.name.localeCompare(b.name)));
+
+      if (resetSelection && restorePersistedSelection && hasPersistedQueryDraft) {
+        setSqlQueryWithPersistence(persistedQueryDraft, schema, database);
+        await handleExecuteQuery(persistedQueryDraft, schema, { silentSuccessToast: true });
+      }
+
+      if (shouldRestoreSelection) {
+        await openTable(nextSelectedTable, schema, false);
+      }
     } catch (error) {
       toast.error("Failed to load tables");
       console.error(error);
@@ -213,10 +328,17 @@ export const DatabasesScreen = () => {
         const nextSchema = savedSchema && schemaList.includes(savedSchema) ? savedSchema : fallback;
         setSchemas(schemaList.length > 0 ? schemaList : ["public"]);
         setSelectedSchema(nextSchema);
-        await loadTablesForDatabase(selectedDatabase, { resetSelection: true, schema: nextSchema });
+        await loadTablesForDatabase(selectedDatabase, {
+          resetSelection: true,
+          schema: nextSchema,
+          restorePersistedSelection: true,
+        });
       } catch (error) {
         console.error("Failed to load schemas", error);
-        await loadTablesForDatabase(selectedDatabase, { resetSelection: true });
+        await loadTablesForDatabase(selectedDatabase, {
+          resetSelection: true,
+          restorePersistedSelection: true,
+        });
       }
     };
 
@@ -230,7 +352,11 @@ export const DatabasesScreen = () => {
       prevDatabaseRef.current = selectedDatabase;
       return;
     }
-    void loadTablesForDatabase(selectedDatabase, { resetSelection: true, schema: selectedSchema });
+    void loadTablesForDatabase(selectedDatabase, {
+      resetSelection: true,
+      schema: selectedSchema,
+      restorePersistedSelection: true,
+    });
   }, [selectedSchema]);
 
   // Load column metadata when table changes.
@@ -258,16 +384,47 @@ export const DatabasesScreen = () => {
     void loadColumnMeta();
   }, [selectedDatabase, selectedTable]);
 
-  const handleSelectTable = async (table: string) => {
+  const handleExecuteQuery = async (
+    sql: string,
+    schema = selectedSchema,
+    options?: { silentSuccessToast?: boolean },
+  ) => {
+    setIsExecuting(true);
+    try {
+      const result = await queryDatabase(sql, undefined, schema);
+      setQueryResults({
+        data: result.data,
+        rowCount: result.rowCount,
+      });
+      if (!options?.silentSuccessToast) {
+        toast.success("Query executed successfully");
+      }
+    } catch (error) {
+      toast.error("Query execution failed");
+      console.error(error);
+    } finally {
+      setIsExecuting(false);
+    }
+  };
+
+  const openTable = async (table: string, schema = selectedSchema, persistSelection = true) => {
     setSelectedTable(table);
-    if (!table) return;
+    if (!table) {
+      setQueryResults(null);
+      setPrimaryKey("id");
+      return;
+    }
+
+    if (persistSelection) {
+      saveTableSelection(selectedDatabase, schema, table);
+    }
 
     const escapedTable = table.replace(/"/g, '""');
     let orderClause = "";
     try {
-      const schema = await getTableSchema(selectedDatabase, table);
+      const tableSchema = await getTableSchema(selectedDatabase, table);
       const orderByColumn = ["created_at", "created"].find((col) =>
-        schema.columns.some((c) => c.column_name === col),
+        tableSchema.columns.some((c) => c.column_name === col),
       );
       if (orderByColumn) {
         orderClause = ` ORDER BY ${orderByColumn} DESC`;
@@ -276,25 +433,8 @@ export const DatabasesScreen = () => {
       // If schema fetch fails, skip ordering
     }
     const sql = `SELECT * FROM "${escapedTable}"${orderClause} LIMIT 100;`;
-    setSqlQuery(sql);
-    void handleExecuteQuery(sql);
-  };
-
-  const handleExecuteQuery = async (sql: string) => {
-    setIsExecuting(true);
-    try {
-      const result = await queryDatabase(sql, undefined, selectedSchema);
-      setQueryResults({
-        data: result.data,
-        rowCount: result.rowCount,
-      });
-      toast.success("Query executed successfully");
-    } catch (error) {
-      toast.error("Query execution failed");
-      console.error(error);
-    } finally {
-      setIsExecuting(false);
-    }
+    setSqlQueryWithPersistence(sql, schema, selectedDatabase);
+    void handleExecuteQuery(sql, schema);
   };
 
   const handleDatabaseChange = (newDb: string) => {
@@ -384,7 +524,7 @@ export const DatabasesScreen = () => {
   };
 
   const handlePastePromptSql = (sql: string) => {
-    setSqlQuery(sql);
+    setSqlQueryWithPersistence(sql);
   };
 
   if (!isLoadingDatabases && isDbConnected === false) {
@@ -427,7 +567,9 @@ export const DatabasesScreen = () => {
           <TablesList
             tables={tables}
             selectedTable={selectedTable}
-            onSelectTable={handleSelectTable}
+            onSelectTable={(table) => {
+              void openTable(table);
+            }}
             isLoading={isLoadingTables}
             onRefresh={handleRefreshTables}
             canRefresh={!!selectedDatabase}
@@ -450,7 +592,7 @@ export const DatabasesScreen = () => {
                   <div className="h-full p-4 overflow-hidden">
                     <SqlQueryEditor
                       value={sqlQuery}
-                      onChange={setSqlQuery}
+                      onChange={setSqlQueryWithPersistence}
                       onExecute={handleExecuteQuery}
                       onSaveSql={handleSaveSql}
                       onTogglePrompts={() => setPromptsSidebarOpen((current) => !current)}
