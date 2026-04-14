@@ -119,7 +119,10 @@ export type TreeAction =
 /* ---------------- MAIN COMPONENT ---------------- */
 
 export default function Requests() {
-  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [selectedId, setSelectedId] = useState<string | null>(() => {
+    if (typeof window === "undefined") return null;
+    return localStorage.getItem("selectedRequestId");
+  });
   const [selectedRequest, setSelectedRequest] = useState<Request | null>(null);
 
   const [requests, setRequests] = useState<Request[]>([]);
@@ -528,6 +531,8 @@ export default function Requests() {
         setSelectedId(action.id);
         setResponse(null);
         setError(null);
+        localStorage.setItem("selectedRequestId", action.id); // ✅ ADD THIS
+
         console.log(requests);
         break;
 
