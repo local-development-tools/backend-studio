@@ -52,11 +52,10 @@ export const ContainersBar = ({
   const isOtherSelected = selectedStack === OTHER_STACK_VALUE;
   const [currentContainers, setCurrentContainers] = useState<ContainerDto[]>([]);
   const [staleIds, setStaleIds] = useState<Set<string>>(new Set());
-
-  // ✅ AUTO-COLLAPSE ON ROUTE CHANGE
-  useEffect(() => {
+    useEffect(() => {
     setExpanded(false);
   }, [location.pathname]);
+  
   const [pendingLifecycleIds, setPendingLifecycleIds] = useState<Set<string>>(new Set());
 
   useEffect(() => {
@@ -115,7 +114,15 @@ export const ContainersBar = ({
       state.toLowerCase() === "running" ? "running" : "exited";
 
     const isEventForSelectedStack = (event: ContainerLifecycleEvent): boolean => {
-      if (!event.stack || !selectedStack) {
+      if (!selectedStack) {
+        return false;
+      }
+
+      if (selectedStack === OTHER_STACK_VALUE) {
+        return !event.stack || event.stack.trim() === "";
+      }
+
+      if (!event.stack) {
         return false;
       }
 
@@ -175,43 +182,80 @@ export const ContainersBar = ({
     };
   }, [selectedStack]);
 
-  const updateContainer = (
-    id: string,
-    updater: (c: Container) => Container,
-  ) => {
-    // setStacks((prev) =>
-    //   Object.fromEntries(
-    //     Object.entries(prev).map(([stackName, containers]) => [
-    //       stackName,
-    //       containers.map((c) => (c.id === id ? updater(c) : c)),
-    //     ]),
-    //   ),
-    // );
+  const isSameContainer = (a: string, b: string): boolean => {
+    return a === b || a.startsWith(b) || b.startsWith(a);
   };
 
-  const handleStart = (id: string) => {
-    // updateContainer(id, (c) => ({...c, status: "running", health: "starting"}));
-    // toast.success("Container starting...");
-    // setTimeout(() => {
-    //   updateContainer(id, (c) => ({...c, health: "healthy"}));
-    // }, 2000);
+  const toUiState = (state: string): ContainerDto["state"] =>
+    state.toLowerCase() === "running" ? "running" : "exited";
+
+  const refreshContainersForSelectedStack = async (): Promise<ContainerDto[]> => {
+    if (!selectedStack || selectedStack.trim() === "") {
+      return [];
+    }
+
+    const containers = isOtherSelected
+      ? await getContainersWithoutStack()
+      : await getContainersByStack(selectedStack);
+    setCurrentContainers(containers);
+
+    if (isOtherSelected) {
+      setStaleIds(new Set());
+      setHasNoStackContainers(containers.length > 0);
+      if (containers.length === 0) {
+        setSelectedStack(stacks[0] ?? "");
+      }
+    }
+
+    return containers;
   };
 
-  const handleStop = (id: string) => {
-    // updateContainer(id, (c) => ({...c, status: "stopped", health: "none"}));
-    // toast.info("Container stopped");
-  };
+  const handleToggleContainerState = async (container: ContainerDto) => {
+    if (pendingLifecycleIds.has(container.id)) {
+      return;
+    }
 
-  const handleRestart = (id: string) => {
-    // updateContainer(id, (c) => ({...c, health: "starting"}));
-    // toast.success("Container restarting...");
-    // setTimeout(() => {
-    //   updateContainer(id, (c) => ({
-    //     ...c,
-    //     status: "running",
-    //     health: "healthy",
-    //   }));
-    // }, 2000);
+    setPendingLifecycleIds((prev) => {
+      const next = new Set(prev);
+      next.add(container.id);
+      return next;
+    });
+
+    try {
+      const latestContainers = await refreshContainersForSelectedStack();
+      const latestContainer = latestContainers.find((item) =>
+        isSameContainer(item.id, container.id),
+      ) ?? container;
+
+      const action = latestContainer.state === "running" ? "stop" : "start";
+      const result = await controlContainerLifecycle(container.id, action);
+      const nextState = toUiState(result.container.state);
+
+      setCurrentContainers((prev) =>
+        prev.map((item) => {
+          if (!isSameContainer(item.id, container.id)) {
+            return item;
+          }
+
+          return {
+            ...item,
+            state: nextState,
+          };
+        }),
+      );
+
+      toast.success(`Container ${action} requested`);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Failed to update container state");
+    } finally {
+      setPendingLifecycleIds((prev) => {
+        const next = new Set(prev);
+        next.delete(container.id);
+        return next;
+      });
+
+      void refreshContainersForSelectedStack().catch(() => {});
+    }
   };
 
   return (
@@ -249,9 +293,8 @@ export const ContainersBar = ({
                 key={container.id}
                 container={container}
                 stale={staleIds.has(container.id)}
-                // onStart={handleStart}
-                // onStop={handleStop}
-                // onRestart={handleRestart}
+                busy={pendingLifecycleIds.has(container.id)}
+                onToggleRunningState={() => handleToggleContainerState(container)}
               />
             ))}
 
