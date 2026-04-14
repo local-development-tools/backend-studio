@@ -311,19 +311,19 @@ export function RequestTreeNode({
         >
           {method && type === "requestHttp" && (
             <span
-              className={`font-mono text-sm px-1 rounded text-${METHOD_COLOR_BASE[method]}`}
+              className={`font-mono text-xs px-1 rounded text-${METHOD_COLOR_BASE[method]}`}
             >
               {method}
             </span>
           )}
 
           {type === "requestGrpc" && (
-            <span className="font-mono text-sm px-1 rounded text-orange-500">
+            <span className="font-mono text-xs px-1 rounded text-orange-500">
               gRPC
             </span>
           )}
 
-          <span className="text-sm">{name}</span>
+          <span className="text-[13px]">{name}</span>
         </div>
 
         <div
@@ -352,7 +352,7 @@ export function RequestTreeNode({
             ) : (
               <ChevronRight className="w-4 h-4 shrink-0" />
             )}
-            <span className="text-sm">{name}</span>
+            <span className="text-[13px]">{name}</span>
           </div>
         </CollapsibleTrigger>
 
