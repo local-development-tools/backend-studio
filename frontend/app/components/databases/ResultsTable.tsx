@@ -1,5 +1,4 @@
 import { useEffect, useMemo, useRef, useState, type MouseEvent as ReactMouseEvent } from "react";
-import { ScrollArea } from "../ui/scroll-area";
 import { Input } from "../ui/input";
 import {
   Select,
@@ -183,135 +182,133 @@ export const ResultsTable = ({
       <div className="text-xs text-muted-foreground">
         {rowCount !== undefined ? `${rowCount} rows` : `${localData.length} rows`}
       </div>
-      <ScrollArea className="h-full">
-        <div className="overflow-x-auto">
-          <table className="w-full" style={{ fontSize: tableFontSize }}>
-            <colgroup>
-              {columns.map((col) => {
-                const width = liveColumnWidths[col] ?? DEFAULT_COLUMN_WIDTH;
-                return <col key={`col-${col}`} style={{ width }} />;
-              })}
-            </colgroup>
-            <thead className="sticky top-0 bg-muted/30 border-b border-border">
-              <tr>
-                {columns.map((col) => (
-                  <th
-                    key={col}
-                    className="relative select-none text-left px-3 py-2 font-semibold uppercase tracking-wide text-muted-foreground"
-                  >
-                    {col}
-                    <div
-                      className="absolute right-0 top-0 h-full w-2 cursor-col-resize hover:bg-primary/20"
-                      onMouseDown={(event) => handleColumnResizeStart(event, col)}
-                      title="Drag to resize column"
-                    />
-                  </th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {localData.map((row, idx) => (
-                <tr key={idx} className="border-b border-border hover:bg-muted/30 transition-colors">
-                  {columns.map((col) => {
-                    const isEditing = editingCell?.rowIdx === idx && editingCell.col === col;
-                    return (
-                      <td
-                        key={`${idx}-${col}`}
-                        className="px-3 py-2 font-mono max-w-0 overflow-hidden"
-                        onClick={() => {
-                          if (!isEditing) {
-                            handleCellClick(idx, col);
-                          }
-                        }}
-                      >
-                        {isEditing ? (
-                          <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
-                            {columnEnumValues[col] ? (
-                              <Select
-                                value={editValue}
-                                onValueChange={setEditValue}
-                                disabled={isSaving}
-                              >
-                                <SelectTrigger
-                                  size="sm"
-                                  className="min-w-[7rem]"
-                                  style={{
-                                    height: `${editorHeight}px`,
-                                    fontSize: editorFontSize,
-                                  }}
-                                  autoFocus
-                                >
-                                  <SelectValue />
-                                </SelectTrigger>
-                                <SelectContent>
-                                  {columnEnumValues[col].map((option) => (
-                                    <SelectItem
-                                      key={option}
-                                      value={option}
-                                      style={{ fontSize: editorFontSize }}
-                                    >
-                                      {option}
-                                    </SelectItem>
-                                  ))}
-                                </SelectContent>
-                              </Select>
-                            ) : (
-                              <Input
-                                value={editValue}
-                                onChange={(e) => setEditValue(e.target.value)}
-                                className="border-border"
+      <div className="flex-1 min-h-0 overflow-auto">
+        <table className="min-w-max w-full" style={{ fontSize: tableFontSize }}>
+          <colgroup>
+            {columns.map((col) => {
+              const width = liveColumnWidths[col] ?? DEFAULT_COLUMN_WIDTH;
+              return <col key={`col-${col}`} style={{ width }} />;
+            })}
+          </colgroup>
+          <thead className="sticky top-0 bg-muted/30 border-b border-border">
+            <tr>
+              {columns.map((col) => (
+                <th
+                  key={col}
+                  className="relative select-none text-left px-3 py-2 font-semibold uppercase tracking-wide text-muted-foreground"
+                >
+                  {col}
+                  <div
+                    className="absolute right-0 top-0 h-full w-2 cursor-col-resize hover:bg-primary/20"
+                    onMouseDown={(event) => handleColumnResizeStart(event, col)}
+                    title="Drag to resize column"
+                  />
+                </th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {localData.map((row, idx) => (
+              <tr key={idx} className="border-b border-border hover:bg-muted/30 transition-colors">
+                {columns.map((col) => {
+                  const isEditing = editingCell?.rowIdx === idx && editingCell.col === col;
+                  return (
+                    <td
+                      key={`${idx}-${col}`}
+                      className="px-3 py-2 font-mono max-w-0 overflow-hidden"
+                      onClick={() => {
+                        if (!isEditing) {
+                          handleCellClick(idx, col);
+                        }
+                      }}
+                    >
+                      {isEditing ? (
+                        <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
+                          {columnEnumValues[col] ? (
+                            <Select
+                              value={editValue}
+                              onValueChange={setEditValue}
+                              disabled={isSaving}
+                            >
+                              <SelectTrigger
+                                size="sm"
+                                className="min-w-[7rem]"
                                 style={{
                                   height: `${editorHeight}px`,
                                   fontSize: editorFontSize,
                                 }}
-                                disabled={isSaving}
                                 autoFocus
-                                onKeyDown={(e) => {
-                                  if (e.key === "Enter") {
-                                    handleSave(idx, col);
-                                  } else if (e.key === "Escape") {
-                                    handleCancel();
-                                  }
-                                }}
-                              />
-                            )}
-                            <button
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                void handleSave(idx, col);
+                              >
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {columnEnumValues[col].map((option) => (
+                                  <SelectItem
+                                    key={option}
+                                    value={option}
+                                    style={{ fontSize: editorFontSize }}
+                                  >
+                                    {option}
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          ) : (
+                            <Input
+                              value={editValue}
+                              onChange={(e) => setEditValue(e.target.value)}
+                              className="border-border"
+                              style={{
+                                height: `${editorHeight}px`,
+                                fontSize: editorFontSize,
                               }}
                               disabled={isSaving}
-                              className="p-0.5 hover:bg-green-500/10 rounded transition-colors"
-                            >
-                              <Check className="h-3 w-3 text-green-600" />
-                            </button>
-                            <button
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                handleCancel();
+                              autoFocus
+                              onKeyDown={(e) => {
+                                if (e.key === "Enter") {
+                                  handleSave(idx, col);
+                                } else if (e.key === "Escape") {
+                                  handleCancel();
+                                }
                               }}
-                              disabled={isSaving}
-                              className="p-0.5 hover:bg-red-500/10 rounded transition-colors"
-                            >
-                              <X className="h-3 w-3 text-red-600" />
-                            </button>
-                          </div>
-                        ) : (
-                          <div className="cursor-pointer truncate" title={row[col] !== null && row[col] !== undefined ? String(row[col]) : "NULL"}>
-                            {row[col] !== null && row[col] !== undefined
-                              ? String(row[col])
-                              : "NULL"}
-                          </div>
-                        )}
-                      </td>
-                    );
-                  })}
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </ScrollArea>
+                            />
+                          )}
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              void handleSave(idx, col);
+                            }}
+                            disabled={isSaving}
+                            className="p-0.5 hover:bg-green-500/10 rounded transition-colors"
+                          >
+                            <Check className="h-3 w-3 text-green-600" />
+                          </button>
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleCancel();
+                            }}
+                            disabled={isSaving}
+                            className="p-0.5 hover:bg-red-500/10 rounded transition-colors"
+                          >
+                            <X className="h-3 w-3 text-red-600" />
+                          </button>
+                        </div>
+                      ) : (
+                        <div className="cursor-pointer truncate" title={row[col] !== null && row[col] !== undefined ? String(row[col]) : "NULL"}>
+                          {row[col] !== null && row[col] !== undefined
+                            ? String(row[col])
+                            : "NULL"}
+                        </div>
+                      )}
+                    </td>
+                  );
+                })}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
     </div>
   );
 };
