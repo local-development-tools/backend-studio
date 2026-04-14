@@ -1,11 +1,6 @@
 import { useEffect, useState } from "react";
 import { useLocation } from "react-router"; // ✅ ADDED
 import {
-  Sun,
-  Moon,
-  Play,
-  Square,
-  RotateCcw,
   ChevronDown,
   ChevronUp,
 } from "lucide-react";
@@ -15,13 +10,17 @@ import { toast } from "sonner";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "./ui/tabs";
 import { ContainerItem } from "./constainersBarElements/ContainerItem";
 import {
+  controlContainerLifecycle,
   getContainersByStack,
+  getContainersWithoutStack,
   getStaleContainers,
   streamContainerLifecycle,
   type ContainerDto,
   type ContainerLifecycleEvent,
   type StackNameDto,
 } from "~/lib/api/containers";
+
+const OTHER_STACK_VALUE = "__other__";
 
 export interface Container {
   id: string;
@@ -47,8 +46,10 @@ export const ContainersBar = ({
   const location = useLocation(); // ✅ ADDED
 
   const [expanded, setExpanded] = useState(true);
+  const [hasNoStackContainers, setHasNoStackContainers] = useState(false);
 
-  const stackNames = stacks;
+  const stackNames = hasNoStackContainers ? [...stacks, OTHER_STACK_VALUE] : stacks;
+  const isOtherSelected = selectedStack === OTHER_STACK_VALUE;
   const [currentContainers, setCurrentContainers] = useState<ContainerDto[]>([]);
   const [staleIds, setStaleIds] = useState<Set<string>>(new Set());
 
@@ -56,13 +57,49 @@ export const ContainersBar = ({
   useEffect(() => {
     setExpanded(false);
   }, [location.pathname]);
+  const [pendingLifecycleIds, setPendingLifecycleIds] = useState<Set<string>>(new Set());
+
+  useEffect(() => {
+    let cancelled = false;
+
+    getContainersWithoutStack()
+      .then((containers) => {
+        if (cancelled) return;
+        const hasContainers = containers.length > 0;
+        setHasNoStackContainers(hasContainers);
+
+        if (!hasContainers && selectedStack === OTHER_STACK_VALUE) {
+          setSelectedStack(stacks[0] ?? "");
+        }
+      })
+      .catch(() => {
+        if (cancelled) return;
+        setHasNoStackContainers(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [selectedStack, setSelectedStack, stacks]);
 
   useEffect(() => {
     if (!selectedStack || selectedStack.trim() === "") return;
 
-    getContainersByStack(selectedStack).then((containers) => {
+    const loadContainers = isOtherSelected
+      ? getContainersWithoutStack()
+      : getContainersByStack(selectedStack);
+
+    loadContainers.then((containers) => {
       setCurrentContainers(containers);
+      if (isOtherSelected) {
+        setHasNoStackContainers(containers.length > 0);
+      }
     });
+
+    if (isOtherSelected) {
+      setStaleIds(new Set());
+      return;
+    }
 
     getStaleContainers(selectedStack)
       .then((results) => {
@@ -71,15 +108,13 @@ export const ContainersBar = ({
         );
       })
       .catch(() => {});
-  }, [selectedStack]);
+  }, [isOtherSelected, selectedStack]);
 
   useEffect(() => {
     const toUiState = (state: string): ContainerDto["state"] =>
       state.toLowerCase() === "running" ? "running" : "exited";
 
-    const isEventForSelectedStack = (
-      event: ContainerLifecycleEvent,
-    ): boolean => {
+    const isEventForSelectedStack = (event: ContainerLifecycleEvent): boolean => {
       if (!event.stack || !selectedStack) {
         return false;
       }
@@ -126,7 +161,7 @@ export const ContainersBar = ({
               id: event.id,
               names: event.names?.length ? event.names : [event.id],
               state: nextState,
-              stack: event.stack ?? selectedStack,
+              stack: event.stack ?? "",
             },
           ];
         }
@@ -144,12 +179,40 @@ export const ContainersBar = ({
     id: string,
     updater: (c: Container) => Container,
   ) => {
-    // reserved
+    // setStacks((prev) =>
+    //   Object.fromEntries(
+    //     Object.entries(prev).map(([stackName, containers]) => [
+    //       stackName,
+    //       containers.map((c) => (c.id === id ? updater(c) : c)),
+    //     ]),
+    //   ),
+    // );
   };
 
-  const handleStart = (id: string) => {};
-  const handleStop = (id: string) => {};
-  const handleRestart = (id: string) => {};
+  const handleStart = (id: string) => {
+    // updateContainer(id, (c) => ({...c, status: "running", health: "starting"}));
+    // toast.success("Container starting...");
+    // setTimeout(() => {
+    //   updateContainer(id, (c) => ({...c, health: "healthy"}));
+    // }, 2000);
+  };
+
+  const handleStop = (id: string) => {
+    // updateContainer(id, (c) => ({...c, status: "stopped", health: "none"}));
+    // toast.info("Container stopped");
+  };
+
+  const handleRestart = (id: string) => {
+    // updateContainer(id, (c) => ({...c, health: "starting"}));
+    // toast.success("Container restarting...");
+    // setTimeout(() => {
+    //   updateContainer(id, (c) => ({
+    //     ...c,
+    //     status: "running",
+    //     health: "healthy",
+    //   }));
+    // }, 2000);
+  };
 
   return (
     <header className="border-b border-border bg-card w-full">
@@ -172,7 +235,7 @@ export const ContainersBar = ({
           <TabsList variant="line" className="justify-start overflow-x-auto">
             {stackNames.map((stack) => (
               <TabsTrigger key={stack} value={stack}>
-                {stack}
+                {stack === OTHER_STACK_VALUE ? "other" : stack}
               </TabsTrigger>
             ))}
           </TabsList>
@@ -186,12 +249,17 @@ export const ContainersBar = ({
                 key={container.id}
                 container={container}
                 stale={staleIds.has(container.id)}
+                // onStart={handleStart}
+                // onStop={handleStop}
+                // onRestart={handleRestart}
               />
             ))}
 
             {currentContainers.length === 0 && (
               <p className="text-sm text-muted-foreground">
-                No containers in this stack.
+                {isOtherSelected
+                  ? "No containers without stack."
+                  : "No containers in this stack."}
               </p>
             )}
           </TabsContent>
