@@ -6,8 +6,8 @@ import {
   ChevronDown,
   ChevronRight,
 } from "lucide-react";
-import { type ReactNode } from "react";
-import { Button } from "~/components/ui/button";
+import {type ReactNode} from "react";
+import {Button} from "~/components/ui/button";
 import {
   Collapsible,
   CollapsibleContent,
@@ -23,9 +23,24 @@ import {
   DropdownMenuSubTrigger,
   DropdownMenuTrigger,
 } from "~/components/ui/dropdown-menu";
-import { METHOD_COLOR_BASE } from "~/lib/api/requests/methodColors";
-import type { HttpMethod } from "../types";
-import type { TreeAction } from "~/routes/requests";
+import {METHOD_COLOR_BASE} from "~/lib/api/requests/methodColors";
+import type {HttpMethod} from "../types";
+import type {TreeAction} from "~/routes/requests";
+
+const STORAGE_KEY = "requestTreeState";
+
+function loadTreeState(): Record<string, boolean> {
+  if (typeof window === "undefined") return {};
+  try {
+    return JSON.parse(localStorage.getItem(STORAGE_KEY) || "{}");
+  } catch {
+    return {};
+  }
+}
+
+function saveTreeState(state: Record<string, boolean>) {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+}
 
 interface RequestTreeNodeProps {
   id?: string;
@@ -38,7 +53,6 @@ interface RequestTreeNodeProps {
   onAction?: (action: TreeAction) => void;
   isSelected: boolean;
   method?: HttpMethod;
-  openFolders: Record<string, boolean>;
 }
 
 export function RequestTreeNode({
@@ -51,19 +65,19 @@ export function RequestTreeNode({
   onAction,
   isSelected,
   method,
-  openFolders,
 }: RequestTreeNodeProps) {
-  const isOpen =
-    type === "root" ? true : openFolders?.[id ?? ""] ?? false;
+  const treeState = loadTreeState();
+
+  const isOpen = type === "root" ? true : id ? (treeState[id] ?? false) : false;
 
   const toggleOpen = (next: boolean) => {
-    if (type === "root") return;
+    if (type === "root" || !id) return;
 
-    onAction?.({
-      type: "updateColapseStates",
-      id: `${id}`,
-      isOpen: next,
-    });
+    const state = loadTreeState();
+    state[id] = next;
+    saveTreeState(state);
+
+    onAction?.({type: "forceRefreshTree"});
   };
 
   const RootOptions = () => (
@@ -81,19 +95,15 @@ export function RequestTreeNode({
         <DropdownMenuContent>
           <DropdownMenuGroup>
             <DropdownMenuItem
-              onClick={() => onAction?.({ type: "createCollection" })}
+              onClick={() => onAction?.({type: "createCollection"})}
             >
               Create collection
             </DropdownMenuItem>
             <DropdownMenuSub>
-              <DropdownMenuSubTrigger>
-                Import collection
-              </DropdownMenuSubTrigger>
+              <DropdownMenuSubTrigger>Import collection</DropdownMenuSubTrigger>
               <DropdownMenuSubContent>
                 <DropdownMenuItem
-                  onClick={() =>
-                    onAction?.({ type: "importCollection" })
-                  }
+                  onClick={() => onAction?.({type: "importCollection"})}
                 >
                   .ZIP
                 </DropdownMenuItem>
@@ -169,18 +179,14 @@ export function RequestTreeNode({
           </DropdownMenuSub>
 
           <DropdownMenuItem
-            onClick={() =>
-              onAction?.({ type: "updateFolder", id: `${id}` })
-            }
+            onClick={() => onAction?.({type: "updateFolder", id: `${id}`})}
           >
             Rename Folder
           </DropdownMenuItem>
 
           <DropdownMenuItem
             variant="destructive"
-            onClick={() =>
-              onAction?.({ type: "deleteFolder", id: `${id}` })
-            }
+            onClick={() => onAction?.({type: "deleteFolder", id: `${id}`})}
           >
             Delete Folder
           </DropdownMenuItem>
@@ -230,17 +236,13 @@ export function RequestTreeNode({
           </DropdownMenuSub>
 
           <DropdownMenuItem
-            onClick={() =>
-              onAction?.({ type: "updateCollection", id: `${id}` })
-            }
+            onClick={() => onAction?.({type: "updateCollection", id: `${id}`})}
           >
             Rename Collection
           </DropdownMenuItem>
 
           <DropdownMenuItem
-            onClick={() =>
-              onAction?.({ type: "exportCollection", id: `${id}` })
-            }
+            onClick={() => onAction?.({type: "exportCollection", id: `${id}`})}
           >
             Export Collection
           </DropdownMenuItem>
@@ -265,9 +267,7 @@ export function RequestTreeNode({
           <DropdownMenuItem>Duplicate Request</DropdownMenuItem>
 
           <DropdownMenuItem
-            onClick={() =>
-              onAction?.({ type: "renameRequest", id: `${id}` })
-            }
+            onClick={() => onAction?.({type: "renameRequest", id: `${id}`})}
           >
             Rename Request
           </DropdownMenuItem>
@@ -292,9 +292,7 @@ export function RequestTreeNode({
         <DropdownMenuTrigger className="p-1 hover:bg-muted rounded">
           <MoreVertical className="w-4 h-4" />
         </DropdownMenuTrigger>
-        <DropdownMenuContent className="min-w-30">
-          {items}
-        </DropdownMenuContent>
+        <DropdownMenuContent className="min-w-30">{items}</DropdownMenuContent>
       </DropdownMenu>
     );
   };
@@ -330,9 +328,7 @@ export function RequestTreeNode({
 
         <div
           className={`transition-opacity ${
-            isSelected
-              ? "opacity-100"
-              : "opacity-0 group-hover:opacity-100"
+            isSelected ? "opacity-100" : "opacity-0 group-hover:opacity-100"
           }`}
         >
           <OptionsMenu />
@@ -343,10 +339,7 @@ export function RequestTreeNode({
 
   // TREE NODE
   return (
-    <Collapsible
-      open={isOpen}
-      onOpenChange={(next) => toggleOpen(next)}
-    >
+    <Collapsible open={isOpen} onOpenChange={(next) => toggleOpen(next)}>
       <div className="flex items-center justify-between group">
         <CollapsibleTrigger asChild>
           <div

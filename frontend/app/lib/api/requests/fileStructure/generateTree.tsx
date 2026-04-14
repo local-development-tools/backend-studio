@@ -20,7 +20,6 @@ interface GenTreeProps {
   method?: HttpMethod;
   onAction?: (action: TreeAction) => void;
   refreshKey?: number;
-  openFolders: Record<string, boolean>;
 }
 
 export function GenTree({
@@ -31,7 +30,6 @@ export function GenTree({
   method,
   onAction,
   refreshKey,
-  openFolders,
 }: GenTreeProps) {
   const [collections, setCollections] = useState<CollectionDto[]>([]);
   const [folders, setFolders] = useState<FolderDto[]>([]);
@@ -82,7 +80,6 @@ export function GenTree({
         type="root"
         isSelected={false}
         onAction={onAction}
-        openFolders={openFolders}
       >
         {collections.map((collection) => (
           <GenTree
@@ -93,7 +90,6 @@ export function GenTree({
             selectedId={selectedId}
             onAction={onAction}
             refreshKey={refreshKey}
-            openFolders={openFolders}   // ✅ FIX
           />
         ))}
       </RequestTreeNode>
@@ -112,7 +108,6 @@ export function GenTree({
         onClick={() => onAction?.({type: "select", id: `${id}`})}
         isSelected={false}
         onAction={onAction}
-        openFolders={openFolders}   // ✅ FIX
       >
         {folders.map((folder) => (
           <GenTree
@@ -123,7 +118,6 @@ export function GenTree({
             selectedId={selectedId}
             onAction={onAction}
             refreshKey={refreshKey}
-            openFolders={openFolders}   // ✅ FIX
           />
         ))}
 
@@ -137,7 +131,6 @@ export function GenTree({
             selectedId={selectedId}
             onAction={onAction}
             refreshKey={refreshKey}
-            openFolders={openFolders}   // (optional but consistent)
           />
         ))}
 
@@ -150,7 +143,6 @@ export function GenTree({
             selectedId={selectedId}
             onAction={onAction}
             refreshKey={refreshKey}
-            openFolders={openFolders}   // (optional but consistent)
           />
         ))}
       </RequestTreeNode>
@@ -169,7 +161,6 @@ export function GenTree({
         onClick={() => onAction?.({type: "select", id: `${id}`})}
         isSelected={false}
         onAction={onAction}
-        openFolders={openFolders}   // ✅ FIX
       >
         {folders.map((folder) => (
           <GenTree
@@ -180,7 +171,6 @@ export function GenTree({
             selectedId={selectedId}
             onAction={onAction}
             refreshKey={refreshKey}
-            openFolders={openFolders}   // ✅ FIX
           />
         ))}
 
@@ -194,7 +184,6 @@ export function GenTree({
             selectedId={selectedId}
             onAction={onAction}
             refreshKey={refreshKey}
-            openFolders={openFolders}
           />
         ))}
 
@@ -207,7 +196,6 @@ export function GenTree({
             selectedId={selectedId}
             onAction={onAction}
             refreshKey={refreshKey}
-            openFolders={openFolders}
           />
         ))}
       </RequestTreeNode>
@@ -227,7 +215,6 @@ export function GenTree({
         isSelected={selectedId === id}
         method={method}
         onAction={onAction}
-        openFolders={openFolders}   // ✅ FIX
       />
     );
   }
@@ -244,7 +231,6 @@ export function GenTree({
         onClick={() => onAction?.({type: "select", id: `${id}`})}
         isSelected={selectedId === id}
         onAction={onAction}
-        openFolders={openFolders}   // ✅ FIX
       />
     );
   }

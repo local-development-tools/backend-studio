@@ -13,7 +13,6 @@ import {TooltipProvider} from "~/components/ui/tooltip";
 export default function Layout() {
   const [stacks, setStacks] = useState<StackNameDto[]>([]);
   const [selectedStack, setSelectedStack] = useState<StackNameDto>("");
-  const [openFolders, setOpenFolders] = useState<Record<string, boolean>>({});
 
   useEffect(() => {
     getStackNames().then((names) => setStacks(names));
@@ -30,7 +29,7 @@ export default function Layout() {
             setSelectedStack={setSelectedStack}
           />
           <div className="min-h-0 flex-1 overflow-hidden">
-            <Outlet context={{selectedStack, openFolders, setOpenFolders}} />
+            <Outlet context={{selectedStack}} />
           </div>
         </div>
       </div>

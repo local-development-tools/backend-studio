@@ -89,14 +89,9 @@ export function meta({}: Route.MetaArgs) {
   ];
 }
 
-type LayoutContext = {
-  selectedStack: string;
-  openFolders: Record<string, boolean>;
-  setOpenFolders: React.Dispatch<React.SetStateAction<Record<string, boolean>>>;
-};
-
 export type TreeAction =
   | {type: "select"; id: string}
+  | {type: "forceRefreshTree"}
   | {type: "updateColapseStates"; id: string; isOpen: boolean}
   | {type: "createCollection"} //name given via modal
   | {type: "deleteCollection"; id: string}
@@ -124,8 +119,6 @@ export type TreeAction =
 /* ---------------- MAIN COMPONENT ---------------- */
 
 export default function Requests() {
-  const {openFolders, setOpenFolders} = useOutletContext<LayoutContext>();
-
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [selectedRequest, setSelectedRequest] = useState<Request | null>(null);
 
@@ -527,18 +520,15 @@ export default function Requests() {
 
   const handleTreeAction = (action: TreeAction) => {
     switch (action.type) {
+      case "forceRefreshTree":
+        setRefreshKey((prev) => prev + 1);
+        break;
+
       case "select":
         setSelectedId(action.id);
         setResponse(null);
         setError(null);
         console.log(requests);
-        break;
-
-      case "updateColapseStates":
-        setOpenFolders((prev) => ({
-          ...prev,
-          [action.id]: action.isOpen,
-        }));
         break;
 
       case "createCollection":
@@ -636,7 +626,6 @@ export default function Requests() {
             selectedId={selectedId}
             onAction={handleTreeAction}
             refreshKey={refreshKey}
-            openFolders={openFolders}
             // onAdd={addRequest}
             // onDelete={deleteRequest}
             // onRename={handleRename}
