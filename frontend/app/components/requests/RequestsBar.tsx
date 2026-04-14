@@ -38,7 +38,11 @@ interface RequestsBarProps {
   refreshKey?: number;
 }
 
-export const RequestsBar = ({ selectedId, onAction, refreshKey}: RequestsBarProps) => {
+export const RequestsBar = ({
+  selectedId,
+  onAction,
+  refreshKey,
+}: RequestsBarProps) => {
   const [collections, setCollections] = useState<CollectionDto[]>([]);
   const [search, setSearch] = useState("");
   const [showModal, setShowModal] = useState(false);

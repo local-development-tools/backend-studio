@@ -6,7 +6,7 @@ import {
   ChevronDown,
   ChevronRight,
 } from "lucide-react";
-import {useState, type ReactNode} from "react";
+import {type ReactNode} from "react";
 import {Button} from "~/components/ui/button";
 import {
   Collapsible,
@@ -24,9 +24,23 @@ import {
   DropdownMenuTrigger,
 } from "~/components/ui/dropdown-menu";
 import {METHOD_COLOR_BASE} from "~/lib/api/requests/methodColors";
-import {cn} from "~/lib/utils";
 import type {HttpMethod} from "../types";
 import type {TreeAction} from "~/routes/requests";
+
+const STORAGE_KEY = "requestTreeState";
+
+function loadTreeState(): Record<string, boolean> {
+  if (typeof window === "undefined") return {};
+  try {
+    return JSON.parse(localStorage.getItem(STORAGE_KEY) || "{}");
+  } catch {
+    return {};
+  }
+}
+
+function saveTreeState(state: Record<string, boolean>) {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+}
 
 interface RequestTreeNodeProps {
   id?: string;
@@ -52,7 +66,19 @@ export function RequestTreeNode({
   isSelected,
   method,
 }: RequestTreeNodeProps) {
-  const [open, setOpen] = useState(type === "root");
+  const treeState = loadTreeState();
+
+  const isOpen = type === "root" ? true : id ? (treeState[id] ?? false) : false;
+
+  const toggleOpen = (next: boolean) => {
+    if (type === "root" || !id) return;
+
+    const state = loadTreeState();
+    state[id] = next;
+    saveTreeState(state);
+
+    onAction?.({type: "forceRefreshTree"});
+  };
 
   const RootOptions = () => (
     <div className="flex gap-1">
@@ -76,7 +102,11 @@ export function RequestTreeNode({
             <DropdownMenuSub>
               <DropdownMenuSubTrigger>Import collection</DropdownMenuSubTrigger>
               <DropdownMenuSubContent>
-                <DropdownMenuItem onClick={() => onAction?.({type: "importCollection"})}>.ZIP</DropdownMenuItem>
+                <DropdownMenuItem
+                  onClick={() => onAction?.({type: "importCollection"})}
+                >
+                  .ZIP
+                </DropdownMenuItem>
                 <DropdownMenuItem>Folder</DropdownMenuItem>
               </DropdownMenuSubContent>
             </DropdownMenuSub>
@@ -113,45 +143,47 @@ export function RequestTreeNode({
             <DropdownMenuSubTrigger>Create new</DropdownMenuSubTrigger>
             <DropdownMenuSubContent>
               <DropdownMenuItem
-                onClick={() => {
+                onClick={() =>
                   onAction?.({
                     type: "createHttpRequest",
                     parentId: `${id}`,
                     location: "folder",
-                  });
-                }}
+                  })
+                }
               >
                 Http Request
               </DropdownMenuItem>
               <DropdownMenuItem
-                onClick={() => {
+                onClick={() =>
                   onAction?.({
                     type: "createGrpcRequest",
                     parentId: `${id}`,
                     location: "folder",
-                  });
-                }}
+                  })
+                }
               >
                 gRPC Request
               </DropdownMenuItem>
               <DropdownMenuItem
-                onClick={() => {
+                onClick={() =>
                   onAction?.({
                     type: "createFolder",
                     parentId: `${id}`,
                     location: "folder",
-                  });
-                }}
+                  })
+                }
               >
                 Folder
               </DropdownMenuItem>
             </DropdownMenuSubContent>
           </DropdownMenuSub>
+
           <DropdownMenuItem
             onClick={() => onAction?.({type: "updateFolder", id: `${id}`})}
           >
             Rename Folder
           </DropdownMenuItem>
+
           <DropdownMenuItem
             variant="destructive"
             onClick={() => onAction?.({type: "deleteFolder", id: `${id}`})}
@@ -168,58 +200,61 @@ export function RequestTreeNode({
             <DropdownMenuSubTrigger>Create new</DropdownMenuSubTrigger>
             <DropdownMenuSubContent>
               <DropdownMenuItem
-                onClick={() => {
+                onClick={() =>
                   onAction?.({
                     type: "createHttpRequest",
                     parentId: `${id}`,
                     location: "collection",
-                  });
-                }}
+                  })
+                }
               >
                 Http Request
               </DropdownMenuItem>
               <DropdownMenuItem
-                onClick={() => {
+                onClick={() =>
                   onAction?.({
                     type: "createGrpcRequest",
                     parentId: `${id}`,
                     location: "collection",
-                  });
-                }}
+                  })
+                }
               >
                 gRPC Request
               </DropdownMenuItem>
               <DropdownMenuItem
-                onClick={() => {
+                onClick={() =>
                   onAction?.({
                     type: "createFolder",
                     parentId: `${id}`,
                     location: "collection",
-                  });
-                }}
+                  })
+                }
               >
                 Folder
               </DropdownMenuItem>
             </DropdownMenuSubContent>
           </DropdownMenuSub>
+
           <DropdownMenuItem
             onClick={() => onAction?.({type: "updateCollection", id: `${id}`})}
           >
             Rename Collection
           </DropdownMenuItem>
+
           <DropdownMenuItem
             onClick={() => onAction?.({type: "exportCollection", id: `${id}`})}
           >
             Export Collection
           </DropdownMenuItem>
+
           <DropdownMenuItem
             variant="destructive"
-            onClick={() => {
+            onClick={() =>
               onAction?.({
                 type: "deleteCollection",
                 id: `${id}`,
-              });
-            }}
+              })
+            }
           >
             Delete Collection
           </DropdownMenuItem>
@@ -230,19 +265,21 @@ export function RequestTreeNode({
       items = (
         <>
           <DropdownMenuItem>Duplicate Request</DropdownMenuItem>
+
           <DropdownMenuItem
             onClick={() => onAction?.({type: "renameRequest", id: `${id}`})}
           >
             Rename Request
           </DropdownMenuItem>
+
           <DropdownMenuItem
             variant="destructive"
-            onClick={() => {
+            onClick={() =>
               onAction?.({
                 type: "deleteRequest",
                 id: `${id}`,
-              });
-            }}
+              })
+            }
           >
             Delete Request
           </DropdownMenuItem>
@@ -260,7 +297,7 @@ export function RequestTreeNode({
     );
   };
 
-  // REQUEST (HTTP / GRPC)
+  // REQUEST NODE
   if (type === "requestHttp" || type === "requestGrpc") {
     return (
       <div
@@ -272,7 +309,6 @@ export function RequestTreeNode({
           className="flex items-center gap-2 cursor-pointer w-full"
           onClick={onClick}
         >
-          {/* Method label */}
           {method && type === "requestHttp" && (
             <span
               className={`font-mono text-sm px-1 rounded text-${METHOD_COLOR_BASE[method]}`}
@@ -290,12 +326,10 @@ export function RequestTreeNode({
           <span className="text-sm">{name}</span>
         </div>
 
-        {/* Options */}
         <div
-          className={`
-          transition-opacity
-          ${isSelected ? "opacity-100" : "opacity-0 group-hover:opacity-100"}
-        `}
+          className={`transition-opacity ${
+            isSelected ? "opacity-100" : "opacity-0 group-hover:opacity-100"
+          }`}
         >
           <OptionsMenu />
         </div>
@@ -303,17 +337,17 @@ export function RequestTreeNode({
     );
   }
 
-  // FOLDER / COLLECTION / ROOT
+  // TREE NODE
   return (
-    <Collapsible open={open} onOpenChange={setOpen}>
+    <Collapsible open={isOpen} onOpenChange={(next) => toggleOpen(next)}>
       <div className="flex items-center justify-between group">
         <CollapsibleTrigger asChild>
           <div
             className="flex items-center gap-1 py-1 cursor-pointer hover:bg-muted rounded w-full"
-            onClick={() => setOpen((prev) => !prev)}
+            onClick={() => toggleOpen(!isOpen)}
             onDoubleClick={onDoubleClick}
           >
-            {open ? (
+            {isOpen ? (
               <ChevronDown className="w-4 h-4 shrink-0" />
             ) : (
               <ChevronRight className="w-4 h-4 shrink-0" />

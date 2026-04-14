@@ -7,8 +7,8 @@ import {
   type ContainerDto,
   type StackNameDto,
 } from "~/lib/api/containers";
-import { parseSSELog } from "~/lib/api/logs";
-import { TooltipProvider } from "~/components/ui/tooltip";
+import {parseSSELog} from "~/lib/api/logs";
+import {TooltipProvider} from "~/components/ui/tooltip";
 
 export default function Layout() {
   const [stacks, setStacks] = useState<StackNameDto[]>([]);
@@ -17,8 +17,6 @@ export default function Layout() {
   useEffect(() => {
     getStackNames().then((names) => setStacks(names));
   }, []);
-
-  
 
   return (
     <TooltipProvider delayDuration={300}>
