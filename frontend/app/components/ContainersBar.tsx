@@ -1,13 +1,14 @@
-import {useEffect, useState} from "react";
+import { useEffect, useState } from "react";
+import { useLocation } from "react-router"; // ✅ ADDED
 import {
   ChevronDown,
   ChevronUp,
 } from "lucide-react";
-import {cn} from "~/lib/utils";
-import {Button} from "./ui/button";
-import {toast} from "sonner";
-import {Tabs, TabsContent, TabsList, TabsTrigger} from "./ui/tabs";
-import {ContainerItem} from "./constainersBarElements/ContainerItem";
+import { cn } from "~/lib/utils";
+import { Button } from "./ui/button";
+import { toast } from "sonner";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "./ui/tabs";
+import { ContainerItem } from "./constainersBarElements/ContainerItem";
 import {
   controlContainerLifecycle,
   getContainersByStack,
@@ -31,8 +32,6 @@ export interface Container {
 
 export type ContainerStacks = Record<string, Container[]>;
 
-//replace with container endpoint data later
-
 interface ContainersBarProps {
   stacks: StackNameDto[];
   selectedStack: StackNameDto;
@@ -44,6 +43,8 @@ export const ContainersBar = ({
   selectedStack,
   setSelectedStack,
 }: ContainersBarProps) => {
+  const location = useLocation(); // ✅ ADDED
+
   const [expanded, setExpanded] = useState(true);
   const [hasNoStackContainers, setHasNoStackContainers] = useState(false);
 
@@ -51,6 +52,10 @@ export const ContainersBar = ({
   const isOtherSelected = selectedStack === OTHER_STACK_VALUE;
   const [currentContainers, setCurrentContainers] = useState<ContainerDto[]>([]);
   const [staleIds, setStaleIds] = useState<Set<string>>(new Set());
+    useEffect(() => {
+    setExpanded(false);
+  }, [location.pathname]);
+  
   const [pendingLifecycleIds, setPendingLifecycleIds] = useState<Set<string>>(new Set());
 
   useEffect(() => {
@@ -97,7 +102,9 @@ export const ContainersBar = ({
 
     getStaleContainers(selectedStack)
       .then((results) => {
-        setStaleIds(new Set(results.filter((r) => r.stale).map((r) => r.containerId)));
+        setStaleIds(
+          new Set(results.filter((r) => r.stale).map((r) => r.containerId)),
+        );
       })
       .catch(() => {});
   }, [isOtherSelected, selectedStack]);
@@ -174,11 +181,6 @@ export const ContainersBar = ({
       source.close();
     };
   }, [selectedStack]);
-
-  // getContainersByStack(selectedStack)
-  // .then((currentContainers) => {
-  //   currentContainers = currentContainers ?? [];
-  // });
 
   const isSameContainer = (a: string, b: string): boolean => {
     return a === b || a.startsWith(b) || b.startsWith(a);
@@ -258,18 +260,9 @@ export const ContainersBar = ({
 
   return (
     <header className="border-b border-border bg-card w-full">
-      <Tabs
-        value={selectedStack}
-        onValueChange={setSelectedStack}
-        className="w-full gap-0"
-      >
-        {/* Top Row: Tabs + Expand Button */}
-        <div
-          className={cn(
-            "flex items-center",
-            expanded ? "border-b border-border" : "",
-          )}
-        >
+      <Tabs value={selectedStack} onValueChange={setSelectedStack} className="w-full gap-0">
+        {/* Top Row */}
+        <div className={cn("flex items-center", expanded ? "border-b border-border" : "")}>
           <Button
             variant="ghost"
             size="icon"
@@ -282,6 +275,7 @@ export const ContainersBar = ({
               <ChevronDown className="min-w-6 min-h-6" />
             )}
           </Button>
+
           <TabsList variant="line" className="justify-start overflow-x-auto">
             {stackNames.map((stack) => (
               <TabsTrigger key={stack} value={stack}>
@@ -293,10 +287,7 @@ export const ContainersBar = ({
 
         {/* Collapsible Content */}
         {expanded && (
-          <TabsContent
-            value={selectedStack}
-            className="mt-0 bg-muted p-3 flex flex-wrap gap-2"
-          >
+          <TabsContent value={selectedStack} className="mt-0 bg-muted p-3 flex flex-wrap gap-2">
             {currentContainers.map((container) => (
               <ContainerItem
                 key={container.id}
