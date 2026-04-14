@@ -1,4 +1,5 @@
-import {useEffect, useState} from "react";
+import { useEffect, useState } from "react";
+import { useLocation } from "react-router"; // ✅ ADDED
 import {
   Sun,
   Moon,
@@ -8,11 +9,11 @@ import {
   ChevronDown,
   ChevronUp,
 } from "lucide-react";
-import {cn} from "~/lib/utils";
-import {Button} from "./ui/button";
-import {toast} from "sonner";
-import {Tabs, TabsContent, TabsList, TabsTrigger} from "./ui/tabs";
-import {ContainerItem} from "./constainersBarElements/ContainerItem";
+import { cn } from "~/lib/utils";
+import { Button } from "./ui/button";
+import { toast } from "sonner";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "./ui/tabs";
+import { ContainerItem } from "./constainersBarElements/ContainerItem";
 import {
   getContainersByStack,
   getStaleContainers,
@@ -32,8 +33,6 @@ export interface Container {
 
 export type ContainerStacks = Record<string, Container[]>;
 
-//replace with container endpoint data later
-
 interface ContainersBarProps {
   stacks: StackNameDto[];
   selectedStack: StackNameDto;
@@ -45,11 +44,18 @@ export const ContainersBar = ({
   selectedStack,
   setSelectedStack,
 }: ContainersBarProps) => {
+  const location = useLocation(); // ✅ ADDED
+
   const [expanded, setExpanded] = useState(true);
 
   const stackNames = stacks;
   const [currentContainers, setCurrentContainers] = useState<ContainerDto[]>([]);
   const [staleIds, setStaleIds] = useState<Set<string>>(new Set());
+
+  // ✅ AUTO-COLLAPSE ON ROUTE CHANGE
+  useEffect(() => {
+    setExpanded(false);
+  }, [location.pathname]);
 
   useEffect(() => {
     if (!selectedStack || selectedStack.trim() === "") return;
@@ -60,7 +66,9 @@ export const ContainersBar = ({
 
     getStaleContainers(selectedStack)
       .then((results) => {
-        setStaleIds(new Set(results.filter((r) => r.stale).map((r) => r.containerId)));
+        setStaleIds(
+          new Set(results.filter((r) => r.stale).map((r) => r.containerId)),
+        );
       })
       .catch(() => {});
   }, [selectedStack]);
@@ -69,7 +77,9 @@ export const ContainersBar = ({
     const toUiState = (state: string): ContainerDto["state"] =>
       state.toLowerCase() === "running" ? "running" : "exited";
 
-    const isEventForSelectedStack = (event: ContainerLifecycleEvent): boolean => {
+    const isEventForSelectedStack = (
+      event: ContainerLifecycleEvent,
+    ): boolean => {
       if (!event.stack || !selectedStack) {
         return false;
       }
@@ -130,64 +140,22 @@ export const ContainersBar = ({
     };
   }, [selectedStack]);
 
-  // getContainersByStack(selectedStack)
-  // .then((currentContainers) => {
-  //   currentContainers = currentContainers ?? [];
-  // });
-
   const updateContainer = (
     id: string,
     updater: (c: Container) => Container,
   ) => {
-    // setStacks((prev) =>
-    //   Object.fromEntries(
-    //     Object.entries(prev).map(([stackName, containers]) => [
-    //       stackName,
-    //       containers.map((c) => (c.id === id ? updater(c) : c)),
-    //     ]),
-    //   ),
-    // );
+    // reserved
   };
 
-  const handleStart = (id: string) => {
-    // updateContainer(id, (c) => ({...c, status: "running", health: "starting"}));
-    // toast.success("Container starting...");
-    // setTimeout(() => {
-    //   updateContainer(id, (c) => ({...c, health: "healthy"}));
-    // }, 2000);
-  };
-
-  const handleStop = (id: string) => {
-    // updateContainer(id, (c) => ({...c, status: "stopped", health: "none"}));
-    // toast.info("Container stopped");
-  };
-
-  const handleRestart = (id: string) => {
-    // updateContainer(id, (c) => ({...c, health: "starting"}));
-    // toast.success("Container restarting...");
-    // setTimeout(() => {
-    //   updateContainer(id, (c) => ({
-    //     ...c,
-    //     status: "running",
-    //     health: "healthy",
-    //   }));
-    // }, 2000);
-  };
+  const handleStart = (id: string) => {};
+  const handleStop = (id: string) => {};
+  const handleRestart = (id: string) => {};
 
   return (
     <header className="border-b border-border bg-card w-full">
-      <Tabs
-        value={selectedStack}
-        onValueChange={setSelectedStack}
-        className="w-full gap-0"
-      >
-        {/* Top Row: Tabs + Expand Button */}
-        <div
-          className={cn(
-            "flex items-center",
-            expanded ? "border-b border-border" : "",
-          )}
-        >
+      <Tabs value={selectedStack} onValueChange={setSelectedStack} className="w-full gap-0">
+        {/* Top Row */}
+        <div className={cn("flex items-center", expanded ? "border-b border-border" : "")}>
           <Button
             variant="ghost"
             size="icon"
@@ -200,6 +168,7 @@ export const ContainersBar = ({
               <ChevronDown className="min-w-6 min-h-6" />
             )}
           </Button>
+
           <TabsList variant="line" className="justify-start overflow-x-auto">
             {stackNames.map((stack) => (
               <TabsTrigger key={stack} value={stack}>
@@ -211,18 +180,12 @@ export const ContainersBar = ({
 
         {/* Collapsible Content */}
         {expanded && (
-          <TabsContent
-            value={selectedStack}
-            className="mt-0 bg-muted p-3 flex flex-wrap gap-2"
-          >
+          <TabsContent value={selectedStack} className="mt-0 bg-muted p-3 flex flex-wrap gap-2">
             {currentContainers.map((container) => (
               <ContainerItem
                 key={container.id}
                 container={container}
                 stale={staleIds.has(container.id)}
-                // onStart={handleStart}
-                // onStop={handleStop}
-                // onRestart={handleRestart}
               />
             ))}
 
