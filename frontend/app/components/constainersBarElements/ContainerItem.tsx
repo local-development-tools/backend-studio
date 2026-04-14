@@ -6,7 +6,7 @@ import { Button } from "~/components/ui/button";
 
 const StatusDot = ({ state }: { state: ContainerDto["state"] }) => {
   const colors = {
-    running: "bg-gray-500",
+    running: "bg-green-500",
     exited: "bg-gray-500",
   };
 
@@ -68,7 +68,6 @@ export const ContainerItem = ({
         ) : (
           <Play className="h-3.5 w-3.5" />
         )}
-        {isRunning ? "Stop" : "Start"}
       </Button>
     </div>
   );

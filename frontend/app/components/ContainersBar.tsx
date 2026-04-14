@@ -139,12 +139,20 @@ export const ContainersBar = ({
   const toUiState = (state: string): ContainerDto["state"] =>
     state.toLowerCase() === "running" ? "running" : "exited";
 
+  const refreshContainersForSelectedStack = async (): Promise<ContainerDto[]> => {
+    if (!selectedStack || selectedStack.trim() === "") {
+      return [];
+    }
+
+    const containers = await getContainersByStack(selectedStack);
+    setCurrentContainers(containers);
+    return containers;
+  };
+
   const handleToggleContainerState = async (container: ContainerDto) => {
     if (pendingLifecycleIds.has(container.id)) {
       return;
     }
-
-    const action = container.state === "running" ? "stop" : "start";
 
     setPendingLifecycleIds((prev) => {
       const next = new Set(prev);
@@ -153,6 +161,12 @@ export const ContainersBar = ({
     });
 
     try {
+      const latestContainers = await refreshContainersForSelectedStack();
+      const latestContainer = latestContainers.find((item) =>
+        isSameContainer(item.id, container.id),
+      ) ?? container;
+
+      const action = latestContainer.state === "running" ? "stop" : "start";
       const result = await controlContainerLifecycle(container.id, action);
       const nextState = toUiState(result.container.state);
 
@@ -171,13 +185,15 @@ export const ContainersBar = ({
 
       toast.success(`Container ${action} requested`);
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : `Failed to ${action} container`);
+      toast.error(error instanceof Error ? error.message : "Failed to update container state");
     } finally {
       setPendingLifecycleIds((prev) => {
         const next = new Set(prev);
         next.delete(container.id);
         return next;
       });
+
+      void refreshContainersForSelectedStack().catch(() => {});
     }
   };
 
