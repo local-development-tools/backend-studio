@@ -7,6 +7,7 @@ export const mockRequests: Request[] = [
     type: 'http',
     method: 'GET',
     url: 'https://api.example.com/users',
+    pathParams: [],
     headers: [{ key: 'Authorization', value: 'Bearer {{token}}' }],
     queryParams: [{ key: 'page', value: '1' }, { key: 'limit', value: '20' }],
     body: '',
@@ -17,6 +18,7 @@ export const mockRequests: Request[] = [
     type: 'http',
     method: 'POST',
     url: 'https://api.example.com/users',
+    pathParams: [],
     headers: [
       { key: 'Authorization', value: 'Bearer {{token}}' },
       { key: 'Content-Type', value: 'application/json' },
@@ -30,6 +32,7 @@ export const mockRequests: Request[] = [
     type: 'http',
     method: 'PUT',
     url: 'https://api.example.com/users/123',
+    pathParams: [{ key: 'id', value: '123' }],
     headers: [
       { key: 'Authorization', value: 'Bearer {{token}}' },
       { key: 'Content-Type', value: 'application/json' },
@@ -43,6 +46,7 @@ export const mockRequests: Request[] = [
     type: 'http',
     method: 'DELETE',
     url: 'https://api.example.com/users/123',
+    pathParams: [{ key: 'id', value: '123' }],
     headers: [{ key: 'Authorization', value: 'Bearer {{token}}' }],
     queryParams: [],
     body: '',

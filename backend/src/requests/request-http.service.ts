@@ -42,6 +42,7 @@ export class RequestHttpService {
       name: createRequestDto.name,
       method: createRequestDto.method,
       url: createRequestDto.url,
+      pathParams: createRequestDto.pathParams,
       headers: createRequestDto.headers,
       body: createRequestDto.body,
       postScript: DEFAULT_POST_SCRIPT,

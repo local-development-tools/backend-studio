@@ -7,6 +7,7 @@ export interface HttpRequest {
   type: 'http';
   method: HttpMethod;
   url: string;
+  pathParams: { key: string; value: string }[];
   headers: { key: string; value: string }[];
   queryParams: { key: string; value: string }[];
   body: string;
