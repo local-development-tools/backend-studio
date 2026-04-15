@@ -7,6 +7,7 @@ export type ParsedBruRequest = {
   name: string;
   method: string;
   url: string;
+  pathParams?: Record<string, string>;
   headers?: Record<string, string>;
   body?: unknown;
   serverAddress?: string;
@@ -41,6 +42,11 @@ export class RequestBruService {
     const metaBlock = `meta {\n  name: ${request.name}\n  type: http\n  seq: 1\n}`;
     const methodBlock = `${method} {\n  url: ${request.url}\n  body: json\n  auth: inherit\n}`;
 
+    const paramsBlock =
+      request.pathParams && Object.keys(request.pathParams).length > 0
+        ? this.headersToBruBlock('params', request.pathParams)
+        : '';
+
     const headersBlock =
       request.headers && Object.keys(request.headers).length > 0
         ? this.headersToBruBlock('headers', request.headers)
@@ -54,7 +60,7 @@ export class RequestBruService {
       .map((l) => `  ${l}`)
       .join('\n')}\n}`;
 
-    return `${metaBlock}\n\n${methodBlock}${headersBlock}${bodyBlock}${settingsBlock}${postScriptBlock}\n`;
+    return `${metaBlock}\n\n${methodBlock}${paramsBlock}${headersBlock}${bodyBlock}${settingsBlock}${postScriptBlock}\n`;
   }
 
   fromBru(contents: string): ParsedBruRequest {
@@ -94,6 +100,7 @@ export class RequestBruService {
 
     const urlMatch = contents.match(/\burl:\s*([^\n\r]+)/i);
     const url = (urlMatch?.[1] ?? '').trim();
+    const pathParams = this.parseHeadersBlock(contents, 'params');
 
     const headers = this.parseHeadersBlock(contents, 'headers');
 
@@ -116,7 +123,7 @@ export class RequestBruService {
           .trim() || DEFAULT_POST_SCRIPT
       : DEFAULT_POST_SCRIPT;
 
-    return { type, name, method, url, headers, body, postScript };
+    return { type, name, method, url, pathParams, headers, body, postScript };
   }
 
   private headersToBruBlock(blockName: string, headers: Record<string, string>): string {

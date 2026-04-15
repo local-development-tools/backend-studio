@@ -15,6 +15,7 @@ export interface HttpRequestDto extends BaseRequestDto {
   type: 'http';
   url: string;
   method: HttpMethod | string;
+  pathParams?: Record<string, string>;
   headers?: Record<string, string>;
   body?: Record<string, string>;
   postScript?: string;
@@ -36,6 +37,7 @@ export type RequestDto = HttpRequestDto | GrpcRequestDto;
 export interface CreateRequestDto {
   url?: string;
   method?: HttpMethod | string;
+  pathParams?: Record<string, string>;
   headers?: Record<string, string>;
   body?: Record<string, string>;
 }
@@ -44,6 +46,7 @@ export interface UpdateRequestDto {
   name?: string;
   url?: string;
   method?: HttpMethod | string;
+  pathParams?: Record<string, string>;
   headers?: Record<string, string>;
   body?: Record<string, string>;
   postScript?: string;

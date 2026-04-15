@@ -15,6 +15,7 @@ import { Input } from '../ui/input';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../ui/tabs';
 import { Badge } from '../ui/badge';
 import { METHOD_COLOR_BASE } from '~/lib/api/requests/methodColors';
+import { syncPathParamsWithUrl } from '~/lib/api/requests/utils';
 
 
 interface HttpRequestEditorProps {
@@ -34,6 +35,9 @@ const METHOD_BORDER = {
 //WONT WORK UNLESS I DEFINE IT HERE I HAVE NO CLUE WHY
 
 export const HttpRequestEditor = ({ request, onChange, onSend, envSelector }: HttpRequestEditorProps) => {
+  const pathParamsCount = request.pathParams.filter((item) => item.key.trim()).length;
+  const queryParamsCount = request.queryParams.filter((item) => item.key.trim()).length;
+
   return (
     <div className="flex flex-col h-full">
       {/* URL bar - Postman style */}
@@ -52,7 +56,14 @@ export const HttpRequestEditor = ({ request, onChange, onSend, envSelector }: Ht
         </Select>
         <Input
           value={request.url}
-          onChange={(e) => onChange({ ...request, url: e.target.value })}
+          onChange={(e) => {
+            const nextUrl = e.target.value;
+            onChange({
+              ...request,
+              url: nextUrl,
+              pathParams: syncPathParamsWithUrl(nextUrl, request.pathParams),
+            });
+          }}
           placeholder="Enter request URL"
           className="flex-1 h-9 border-none shadow-none focus-visible:ring-0 text-sm font-mono"
         />
@@ -68,7 +79,7 @@ export const HttpRequestEditor = ({ request, onChange, onSend, envSelector }: Ht
           <TabsList className="h-8 rounded-none border-b-0 bg-transparent justify-start px-0 shrink-0">
             <TabsTrigger value="params" className="text-[11px] h-6 data-[state=active]:bg-muted rounded-sm">
               Params
-              {request.queryParams.length > 0 && <Badge variant="secondary" className="ml-1 h-4 px-1 text-[9px]">{request.queryParams.length}</Badge>}
+              {(pathParamsCount + queryParamsCount) > 0 && <Badge variant="secondary" className="ml-1 h-4 px-1 text-[9px]">{pathParamsCount + queryParamsCount}</Badge>}
             </TabsTrigger>
             <TabsTrigger value="headers" className="text-[11px] h-6 data-[state=active]:bg-muted rounded-sm">
               Headers
@@ -80,10 +91,22 @@ export const HttpRequestEditor = ({ request, onChange, onSend, envSelector }: Ht
           {envSelector && <div className="ml-auto pr-1">{envSelector}</div>}
         </div>
         <TabsContent value="params" className="flex-1 m-0 mt-2 min-h-0 overflow-auto">
-          <KeyValueEditor
-            items={request.queryParams}
-            onChange={(queryParams) => onChange({ ...request, queryParams })}
-          />
+          <div className="space-y-4">
+            <div>
+              <div className="mb-1 px-1 text-[10px] uppercase tracking-wide text-muted-foreground">Path params</div>
+              <KeyValueEditor
+                items={request.pathParams}
+                onChange={(pathParams) => onChange({ ...request, pathParams })}
+              />
+            </div>
+            <div>
+              <div className="mb-1 px-1 text-[10px] uppercase tracking-wide text-muted-foreground">Query params</div>
+              <KeyValueEditor
+                items={request.queryParams}
+                onChange={(queryParams) => onChange({ ...request, queryParams })}
+              />
+            </div>
+          </div>
         </TabsContent>
         <TabsContent value="headers" className="flex-1 m-0 mt-2 min-h-0 overflow-auto">
           <KeyValueEditor
