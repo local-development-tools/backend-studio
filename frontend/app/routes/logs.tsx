@@ -20,13 +20,19 @@ type LayoutContext = {
 
 const orderKey = (stack: string) => `logs-container-order:${stack}`;
 
+const normalizeContainerName = (name: string) =>
+  name.startsWith("/") ? name.slice(1) : name;
+
+const getContainerOrderKey = (container: ContainerDto) =>
+  normalizeContainerName(container.names[0] ?? container.id);
+
 export default function Logs() {
   const { selectedStack } = useOutletContext<LayoutContext>();
   const isOtherSelected = selectedStack === OTHER_STACK_VALUE;
   const [currentContainers, setCurrentContainers] = useState<ContainerDto[]>([]);
   const [containerOrder, setContainerOrder] = useState<string[]>([]);
-  const [dragOverId, setDragOverId] = useState<string | null>(null);
-  const dragItemId = useRef<string | null>(null);
+  const [dragOverKey, setDragOverKey] = useState<string | null>(null);
+  const dragItemKey = useRef<string | null>(null);
 
   useEffect(() => {
     if (!selectedStack || selectedStack.trim() === "") return;
@@ -44,13 +50,28 @@ export default function Logs() {
   useEffect(() => {
     if (!selectedStack) return;
     const saved = localStorage.getItem(orderKey(selectedStack));
-    const savedOrder: string[] = saved ? JSON.parse(saved) : [];
-    const allIds = currentContainers.map((c) => c.id);
+    const parsedSaved = saved ? JSON.parse(saved) : [];
+    const savedOrder = Array.isArray(parsedSaved)
+      ? parsedSaved.filter((entry): entry is string => typeof entry === "string")
+      : [];
+    const allKeys = currentContainers.map(getContainerOrderKey);
+
+    // Migrate old id-based order to the new name-based order.
+    const normalizedSavedOrder = savedOrder
+      .map((entry) => {
+        if (allKeys.includes(entry)) return entry;
+
+        const matchById = currentContainers.find((container) => container.id === entry);
+        return matchById ? getContainerOrderKey(matchById) : entry;
+      })
+      .filter((entry) => allKeys.includes(entry));
+
     const merged = [
-      ...savedOrder.filter((id) => allIds.includes(id)),
-      ...allIds.filter((id) => !savedOrder.includes(id)),
+      ...normalizedSavedOrder,
+      ...allKeys.filter((key) => !normalizedSavedOrder.includes(key)),
     ];
-    setContainerOrder(merged);
+
+    setContainerOrder(Array.from(new Set(merged)));
   }, [currentContainers, selectedStack]);
 
   // Persist order changes.
@@ -120,50 +141,55 @@ export default function Logs() {
   }, [isOtherSelected, selectedStack]);
 
   const orderedContainers = containerOrder
-    .map((id) => currentContainers.find((c) => c.id === id))
+    .map((key) => currentContainers.find((container) => getContainerOrderKey(container) === key))
     .filter((c): c is ContainerDto => c !== undefined && c.state === "running");
 
-  const handleDragStart = (id: string) => {
-    dragItemId.current = id;
+  const handleDragStart = (key: string) => {
+    dragItemKey.current = key;
   };
 
-  const handleDragOver = (e: React.DragEvent, id: string) => {
+  const handleDragOver = (e: React.DragEvent, key: string) => {
     e.preventDefault();
-    setDragOverId(id);
+    setDragOverKey(key);
   };
 
-  const handleDrop = (targetId: string) => {
-    const fromId = dragItemId.current;
-    if (!fromId || fromId === targetId) {
-      setDragOverId(null);
+  const handleDrop = (targetKey: string) => {
+    const fromKey = dragItemKey.current;
+    if (!fromKey || fromKey === targetKey) {
+      setDragOverKey(null);
       return;
     }
+
     setContainerOrder((prev) => {
       const copy = [...prev];
-      const fromIdx = copy.indexOf(fromId);
-      const toIdx = copy.indexOf(targetId);
+      const fromIdx = copy.indexOf(fromKey);
+      const toIdx = copy.indexOf(targetKey);
+
+      if (fromIdx === -1 || toIdx === -1) return prev;
+
       copy.splice(fromIdx, 1);
-      copy.splice(toIdx, 0, fromId);
+      copy.splice(toIdx, 0, fromKey);
       return copy;
     });
-    dragItemId.current = null;
-    setDragOverId(null);
+
+    dragItemKey.current = null;
+    setDragOverKey(null);
   };
 
   const handleDragEnd = () => {
-    dragItemId.current = null;
-    setDragOverId(null);
+    dragItemKey.current = null;
+    setDragOverKey(null);
   };
 
   const dragHandle = (container: ContainerDto) => ({
     draggable: true as const,
-    onDragStart: () => handleDragStart(container.id),
+    onDragStart: () => handleDragStart(getContainerOrderKey(container)),
     onDragEnd: handleDragEnd,
   });
 
   const dropZone = (container: ContainerDto) => ({
-    onDragOver: (e: React.DragEvent) => handleDragOver(e, container.id),
-    onDrop: () => handleDrop(container.id),
+    onDragOver: (e: React.DragEvent) => handleDragOver(e, getContainerOrderKey(container)),
+    onDrop: () => handleDrop(getContainerOrderKey(container)),
   });
 
   const [layout, setLayout] = useState<
@@ -201,8 +227,8 @@ export default function Logs() {
                 {...dropZone(container)}
                 className={cn(
                   "group relative transition-opacity",
-                  dragOverId === container.id &&
-                    dragItemId.current !== container.id &&
+                  dragOverKey === getContainerOrderKey(container) &&
+                    dragItemKey.current !== getContainerOrderKey(container) &&
                     "opacity-50",
                 )}
               >
@@ -231,8 +257,8 @@ export default function Logs() {
                 {...dropZone(container)}
                 className={cn(
                   "group relative transition-opacity",
-                  dragOverId === container.id &&
-                    dragItemId.current !== container.id &&
+                  dragOverKey === getContainerOrderKey(container) &&
+                    dragItemKey.current !== getContainerOrderKey(container) &&
                     "opacity-50",
                 )}
               >
@@ -264,8 +290,8 @@ export default function Logs() {
                     {...dropZone(container)}
                     className={cn(
                       "group relative transition-opacity",
-                      dragOverId === container.id &&
-                        dragItemId.current !== container.id &&
+                      dragOverKey === getContainerOrderKey(container) &&
+                        dragItemKey.current !== getContainerOrderKey(container) &&
                         "opacity-50",
                     )}
                   >
@@ -294,8 +320,8 @@ export default function Logs() {
                     {...dropZone(container)}
                     className={cn(
                       "group relative transition-opacity",
-                      dragOverId === container.id &&
-                        dragItemId.current !== container.id &&
+                      dragOverKey === getContainerOrderKey(container) &&
+                        dragItemKey.current !== getContainerOrderKey(container) &&
                         "opacity-50",
                     )}
                   >
