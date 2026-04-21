@@ -550,7 +550,7 @@ export const DatabasesScreen = () => {
   return (
     <ResizablePanelGroup orientation="horizontal" className="h-full w-full">
       {/* Left Sidebar */}
-      <ResizablePanel defaultSize="20%" minSize="15%" maxSize="40%">
+      <ResizablePanel defaultSize="15%" minSize="15%" maxSize="40%">
         <div className="flex flex-col h-full border-r border-border bg-background">
           <DatabaseSelector
             selectedDatabase={selectedDatabase}
