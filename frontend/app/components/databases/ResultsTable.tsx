@@ -24,12 +24,48 @@ interface ResultsTableProps {
   onColumnWidthsChange?: (columnWidths: Record<string, number>) => void;
 }
 
-const DEFAULT_COLUMN_WIDTH = 220;
+const DEFAULT_COLUMN_WIDTH = 140;
 const MIN_COLUMN_WIDTH = 40;
-const MAX_COLUMN_WIDTH = 640;
+const CELL_HORIZONTAL_PADDING_PX = 24;
+const AUTO_WIDTH_BUFFER_PX = 2; // Additional buffer to prevent text from touching cell edges when auto-sizing
 
-const clampColumnWidth = (value: number) =>
-  Math.min(MAX_COLUMN_WIDTH, Math.max(MIN_COLUMN_WIDTH, value));
+const measurementCanvas =
+  typeof document !== "undefined" ? document.createElement("canvas") : null;
+const measurementContext = measurementCanvas?.getContext("2d") ?? null;
+
+const clampColumnWidth = (value: number) => Math.max(MIN_COLUMN_WIDTH, value);
+
+const measureTextWidth = (text: string, font: string) => {
+  if (!measurementContext) {
+    return text.length * 8;
+  }
+
+  measurementContext.font = font;
+  return measurementContext.measureText(text).width;
+};
+
+const estimateColumnWidthFromValues = (
+  rows: Record<string, any>[],
+  column: string,
+  fontScale: number,
+) => {
+  const monoFontPx = Math.max(10, Math.round(11 * (fontScale / 100)));
+  const cellFont = `${monoFontPx}px ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, \"Liberation Mono\", \"Courier New\", monospace`;
+  const headerFont = `600 ${monoFontPx}px ui-sans-serif, system-ui, sans-serif`;
+
+  const headerWidth = measureTextWidth(column.toUpperCase(), headerFont);
+  const maxValueWidth = rows.reduce((maxWidth, row) => {
+    const value = row[column];
+    const printable = value === null || value === undefined ? "NULL" : String(value);
+    return Math.max(maxWidth, measureTextWidth(printable, cellFont));
+  }, 0);
+
+  const contentWidth = Math.max(headerWidth, maxValueWidth);
+  const estimated = Math.ceil(
+    contentWidth + CELL_HORIZONTAL_PADDING_PX + AUTO_WIDTH_BUFFER_PX,
+  );
+  return clampColumnWidth(estimated || DEFAULT_COLUMN_WIDTH);
+};
 
 export const ResultsTable = ({
   data,
@@ -72,6 +108,27 @@ export const ResultsTable = ({
   }, [liveColumnWidths]);
 
   const columns = useMemo(() => (localData.length > 0 ? Object.keys(localData[0]) : []), [localData]);
+  const autoColumnWidths = useMemo(
+    () =>
+      columns.reduce<Record<string, number>>((acc, column) => {
+        acc[column] = estimateColumnWidthFromValues(localData, column, fontScale);
+        return acc;
+      }, {}),
+    [columns, fontScale, localData],
+  );
+  const resolvedColumnWidths = useMemo(
+    () =>
+      columns.reduce<Record<string, number>>((acc, column) => {
+        acc[column] =
+          liveColumnWidths[column] ?? autoColumnWidths[column] ?? DEFAULT_COLUMN_WIDTH;
+        return acc;
+      }, {}),
+    [autoColumnWidths, columns, liveColumnWidths],
+  );
+  const tableWidth = useMemo(
+    () => columns.reduce((sum, column) => sum + (resolvedColumnWidths[column] ?? 0), 0),
+    [columns, resolvedColumnWidths],
+  );
   const fontSizeRem = (0.55 * (fontScale / 100)).toFixed(3);
   const tableFontSize = `${fontSizeRem}rem`;
   const editorHeight = Math.max(22, Math.round(24 * (fontScale / 100)));
@@ -169,7 +226,7 @@ export const ResultsTable = ({
     event.preventDefault();
     event.stopPropagation();
 
-    const width = liveColumnWidthsRef.current[column] ?? DEFAULT_COLUMN_WIDTH;
+    const width = liveColumnWidthsRef.current[column] ?? autoColumnWidths[column] ?? DEFAULT_COLUMN_WIDTH;
     setResizingColumn({
       column,
       startX: event.clientX,
@@ -183,10 +240,16 @@ export const ResultsTable = ({
         {rowCount !== undefined ? `${rowCount} rows` : `${localData.length} rows`}
       </div>
       <div className="flex-1 min-h-0 overflow-auto">
-        <table className="min-w-max w-full" style={{ fontSize: tableFontSize }}>
+        <table
+          className="table-fixed"
+          style={{
+            fontSize: tableFontSize,
+            width: `${Math.max(tableWidth, DEFAULT_COLUMN_WIDTH)}px`,
+          }}
+        >
           <colgroup>
             {columns.map((col) => {
-              const width = liveColumnWidths[col] ?? DEFAULT_COLUMN_WIDTH;
+              const width = resolvedColumnWidths[col] ?? DEFAULT_COLUMN_WIDTH;
               return <col key={`col-${col}`} style={{ width }} />;
             })}
           </colgroup>
@@ -195,9 +258,9 @@ export const ResultsTable = ({
               {columns.map((col) => (
                 <th
                   key={col}
-                  className="relative select-none text-left px-3 py-2 font-semibold uppercase tracking-wide text-muted-foreground"
+                  className="relative select-none text-left px-3 py-2 font-semibold uppercase tracking-wide text-muted-foreground overflow-hidden"
                 >
-                  {col}
+                  <span className="block truncate pr-2">{col}</span>
                   <div
                     className="absolute right-0 top-0 h-full w-2 cursor-col-resize hover:bg-primary/20"
                     onMouseDown={(event) => handleColumnResizeStart(event, col)}
@@ -215,7 +278,7 @@ export const ResultsTable = ({
                   return (
                     <td
                       key={`${idx}-${col}`}
-                      className="px-3 py-2 font-mono max-w-0 overflow-hidden"
+                      className="px-3 py-2 font-mono overflow-hidden"
                       onClick={() => {
                         if (!isEditing) {
                           handleCellClick(idx, col);
