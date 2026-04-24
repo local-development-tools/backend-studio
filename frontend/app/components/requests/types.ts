@@ -26,6 +26,7 @@ export interface GrpcRequest {
   message: string;
   metadata: { key: string; value: string }[];
   collectionId?: string;
+  postScript?: string;
 }
 
 export type Request = HttpRequest | GrpcRequest;
