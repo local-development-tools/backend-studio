@@ -47,7 +47,7 @@ export class SettingsService {
     };
   }
 
-  async upsertDatabaseConnection(connectionDto: DatabaseConnectionUpsertDto) {
+  upsertDatabaseConnection(connectionDto: DatabaseConnectionUpsertDto) {
     const env = this.readEnvFile();
     const connections = this.readDatabaseConnections(env);
 
