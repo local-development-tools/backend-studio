@@ -388,6 +388,7 @@ export default function Requests() {
             protoContent: selectedRequest.protoContent,
             message: parseBodyToApi(selectedRequest.message),
             metadata: toHeaderRecord(selectedRequest.metadata),
+            postScript: selectedRequest.postScript ?? "",
           }
         : null;
 
@@ -422,6 +423,7 @@ export default function Requests() {
                 value: interpolateVariables(m.value, collectionId, envVars),
               })),
             ),
+            postScript: selectedRequest.postScript ?? "",
           }
         : null;
 
