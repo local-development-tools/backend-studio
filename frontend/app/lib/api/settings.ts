@@ -19,6 +19,31 @@ export interface DatabaseSettingsPatch {
   database?: string;
 }
 
+export interface DatabaseConnectionResponse {
+  id: string;
+  name: string;
+  host: string;
+  port: number;
+  username: string;
+  database: string;
+  passwordSet: boolean;
+}
+
+export interface DatabaseConnectionUpsertPayload {
+  id: string;
+  name: string;
+  host: string;
+  port: number;
+  username: string;
+  database: string;
+  password?: string;
+}
+
+export interface DatabaseConnectionsResponse {
+  activeConnectionId: string | null;
+  connections: DatabaseConnectionResponse[];
+}
+
 export interface AiSettingsResponse {
   openAIApiKeySet: boolean;
   anthropicApiKeySet: boolean;
@@ -57,6 +82,44 @@ export async function patchDatabaseSettings(
   });
   if (!res.ok) throw new Error(`Failed to save database settings: ${res.status}`);
   return res.json() as Promise<DatabaseSettingsResponse>;
+}
+
+export async function getDatabaseConnections(): Promise<DatabaseConnectionsResponse> {
+  const res = await fetch(`${API_BASE_URL}/settings/db/connections`);
+  if (!res.ok) throw new Error(`Failed to load database connections: ${res.status}`);
+  return res.json() as Promise<DatabaseConnectionsResponse>;
+}
+
+export async function upsertDatabaseConnection(
+  payload: DatabaseConnectionUpsertPayload,
+): Promise<DatabaseConnectionsResponse> {
+  const res = await fetch(`${API_BASE_URL}/settings/db/connections`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  });
+  if (!res.ok) throw new Error(`Failed to save database connection: ${res.status}`);
+  return res.json() as Promise<DatabaseConnectionsResponse>;
+}
+
+export async function activateDatabaseConnection(
+  id: string,
+): Promise<DatabaseConnectionsResponse & { settings: DatabaseSettingsResponse }> {
+  const res = await fetch(`${API_BASE_URL}/settings/db/connections/active`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ id }),
+  });
+  if (!res.ok) throw new Error(`Failed to activate database connection: ${res.status}`);
+  return res.json() as Promise<DatabaseConnectionsResponse & { settings: DatabaseSettingsResponse }>;
+}
+
+export async function deleteDatabaseConnection(id: string): Promise<DatabaseConnectionsResponse> {
+  const res = await fetch(`${API_BASE_URL}/settings/db/connections/${encodeURIComponent(id)}`, {
+    method: 'DELETE',
+  });
+  if (!res.ok) throw new Error(`Failed to delete database connection: ${res.status}`);
+  return res.json() as Promise<DatabaseConnectionsResponse>;
 }
 
 export async function getAiSettings(): Promise<AiSettingsResponse> {

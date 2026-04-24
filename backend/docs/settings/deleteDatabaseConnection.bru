@@ -1,0 +1,15 @@
+meta {
+  name: deleteDatabaseConnection
+  type: http
+  seq: 13
+}
+
+delete {
+  url: http://localhost:3000/settings/db/connections/conn_local
+  body: none
+  auth: inherit
+}
+
+settings {
+  encodeUrl: true
+}

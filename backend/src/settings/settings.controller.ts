@@ -1,9 +1,13 @@
-import { Controller, Post, Body, Get, Delete, Patch } from '@nestjs/common';
+import { Controller, Post, Body, Get, Delete, Patch, Param } from '@nestjs/common';
 import { SettingsService } from './settings.service';
 import { DatabaseSettingsDto } from './dto/database-settings.dto';
 import { AiSettingsDto } from './dto/ai-settings.dto';
+import {
+  ActiveDatabaseConnectionDto,
+  DatabaseConnectionUpsertDto,
+} from './dto/database-connection.dto';
 class MicroservicesRootDto {
-  path: string;
+  path!: string;
 }
 
 @Controller('settings')
@@ -28,6 +32,26 @@ export class SettingsController {
   @Delete('db')
   clearDatabaseSettings() {
     return this.settingsService.clearDatabaseSettings();
+  }
+
+  @Get('db/connections')
+  getDatabaseConnections() {
+    return this.settingsService.getDatabaseConnections();
+  }
+
+  @Post('db/connections')
+  upsertDatabaseConnection(@Body() connectionDto: DatabaseConnectionUpsertDto) {
+    return this.settingsService.upsertDatabaseConnection(connectionDto);
+  }
+
+  @Patch('db/connections/active')
+  setActiveDatabaseConnection(@Body() dto: ActiveDatabaseConnectionDto) {
+    return this.settingsService.setActiveDatabaseConnection(dto.id);
+  }
+
+  @Delete('db/connections/:id')
+  deleteDatabaseConnection(@Param('id') id: string) {
+    return this.settingsService.deleteDatabaseConnection(id);
   }
 
   @Get('ai')

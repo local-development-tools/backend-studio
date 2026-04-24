@@ -1,0 +1,21 @@
+meta {
+  name: setActiveDatabaseConnection
+  type: http
+  seq: 12
+}
+
+patch {
+  url: http://localhost:3000/settings/db/connections/active
+  body: json
+  auth: inherit
+}
+
+body:json {
+  {
+    "id": "conn_local"
+  }
+}
+
+settings {
+  encodeUrl: true
+}
