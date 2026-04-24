@@ -1,0 +1,27 @@
+meta {
+  name: upsertDatabaseConnection
+  type: http
+  seq: 11
+}
+
+post {
+  url: http://localhost:3000/settings/db/connections
+  body: json
+  auth: inherit
+}
+
+body:json {
+  {
+    "id": "conn_local",
+    "name": "Local PostgreSQL",
+    "host": "host.docker.internal",
+    "port": 5432,
+    "username": "postgres",
+    "password": "postgres",
+    "database": "postgres"
+  }
+}
+
+settings {
+  encodeUrl: true
+}

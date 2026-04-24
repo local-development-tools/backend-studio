@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { ChevronDown, CopyPlus, Loader2, TriangleAlert, X } from "lucide-react";
+import { Link } from "react-router";
 import { Button } from "../ui/button";
 import { Input } from "../ui/input";
 import { Label } from "../ui/label";
@@ -11,9 +12,14 @@ import {
 } from "../ui/dropdown-menu";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../ui/select";
 import { cloneDatabaseToLocal, type CloneSslMode } from "~/lib/api/databases";
+import { type DatabaseConnectionProfile, getConnectionDisplayName } from "~/lib/db-connections";
 import { toast } from "sonner";
 
 interface DatabaseSelectorProps {
+  connections: DatabaseConnectionProfile[];
+  activeConnectionId: string | null;
+  onConnectionChange: (connectionId: string) => void;
+  isSwitchingConnection?: boolean;
   selectedDatabase: string;
   selectedSchema: string;
   databases: string[];
@@ -24,6 +30,10 @@ interface DatabaseSelectorProps {
 }
 
 export const DatabaseSelector = ({
+  connections,
+  activeConnectionId,
+  onConnectionChange,
+  isSwitchingConnection,
   selectedDatabase,
   selectedSchema,
   databases,
@@ -41,6 +51,7 @@ export const DatabaseSelector = ({
   const [cloneDbName, setCloneDbName] = useState("");
   const [cloneSslMode, setCloneSslMode] = useState<CloneSslMode>("prefer");
   const [cloneError, setCloneError] = useState<string | null>(null);
+  const activeConnection = connections.find((connection) => connection.id === activeConnectionId);
 
   const resetCloneForm = () => {
     setCloneHost("");
@@ -102,6 +113,49 @@ export const DatabaseSelector = ({
 
   return (
     <div className="flex flex-col gap-3 py-3 px-3 border-b border-border">
+      <div className="flex flex-col gap-1">
+        <div className="flex items-center justify-between">
+          <span className="text-xs font-medium text-muted-foreground">Connection</span>
+          <Button asChild size="sm" variant="ghost" className="h-7 px-2 text-xs">
+            <Link to="/settings">+ Add</Link>
+          </Button>
+        </div>
+        <div className="flex">
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button
+                variant="outline"
+                className="w-auto max-w-full gap-2 px-2.5"
+                size="sm"
+                title={activeConnection?.name || "Select connection"}
+                disabled={Boolean(isSwitchingConnection)}
+              >
+                <span className="max-w-[22rem] truncate">
+                  {activeConnection ? getConnectionDisplayName(activeConnection) : "Select connection"}
+                </span>
+                {isSwitchingConnection ? (
+                  <Loader2 className="h-3 w-3 shrink-0 animate-spin" />
+                ) : (
+                  <ChevronDown className="h-3 w-3 shrink-0" />
+                )}
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="start" className="w-64">
+              {connections.map((connection) => (
+                <DropdownMenuItem
+                  key={connection.id}
+                  title={getConnectionDisplayName(connection)}
+                  onClick={() => onConnectionChange(connection.id)}
+                  className={activeConnectionId === connection.id ? "bg-accent" : ""}
+                >
+                  {getConnectionDisplayName(connection)}
+                </DropdownMenuItem>
+              ))}
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
+      </div>
+
       <div className="flex flex-col gap-1">
         <div className="flex items-center justify-between">
           <span className="text-xs font-medium text-muted-foreground">Database</span>

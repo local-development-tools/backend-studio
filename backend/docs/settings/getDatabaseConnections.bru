@@ -1,0 +1,15 @@
+meta {
+  name: getDatabaseConnections
+  type: http
+  seq: 10
+}
+
+get {
+  url: http://localhost:3000/settings/db/connections
+  body: none
+  auth: inherit
+}
+
+settings {
+  encodeUrl: true
+}

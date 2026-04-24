@@ -21,6 +21,7 @@ const execFileAsync = promisify(execFile);
 @Injectable()
 export class DatabasesService implements OnModuleInit {
   private pool: Pool | null = null;
+  private currentConnection: PostgresConnectionDto | null = null;
   private readonly logger = new Logger(DatabasesService.name);
   private readonly envFilePath = resolve(__dirname, '../../.env');
 
@@ -64,6 +65,8 @@ export class DatabasesService implements OnModuleInit {
       if (this.pool) {
         await this.disconnect();
       }
+
+      this.currentConnection = { ...connectionDto };
 
       this.pool = new Pool({
         host: connectionDto.host,
@@ -182,10 +185,21 @@ export class DatabasesService implements OnModuleInit {
       await this.pool.end();
       this.pool = null;
     }
+
+    this.currentConnection = null;
   }
 
-  getDatabases(): Promise<any> {
-    return this.query('SELECT datname FROM pg_database WHERE datistemplate = false;');
+  async getDatabases(): Promise<any> {
+    try {
+      return await this.query('SELECT datname FROM pg_database WHERE datistemplate = false ORDER BY datname;');
+    } catch (error) {
+      const fallback = await this.queryDatabaseNamesFromMaintenanceDb();
+      if (fallback) {
+        return fallback;
+      }
+
+      throw error;
+    }
   }
 
   async getSchemas(database: string): Promise<any> {
@@ -561,6 +575,50 @@ export class DatabasesService implements OnModuleInit {
     process.env.DB_USER = connection.username;
     process.env.DB_PASSWORD = connection.password;
     process.env.DB_NAME = connection.database;
+  }
+
+  private async queryDatabaseNamesFromMaintenanceDb(): Promise<any | null> {
+    const connection = this.currentConnection;
+    if (!connection) {
+      return null;
+    }
+
+    const maintenanceDatabases = ['postgres', 'template1'];
+    for (const database of maintenanceDatabases) {
+      if (database === connection.database) {
+        continue;
+      }
+
+      const tempPool = new Pool({
+        host: connection.host,
+        port: connection.port,
+        user: connection.username,
+        password: connection.password,
+        database,
+      });
+
+      try {
+        const result = await tempPool.query(
+          'SELECT datname FROM pg_database WHERE datistemplate = false ORDER BY datname;',
+        );
+        await tempPool.end();
+        return result;
+      } catch (error) {
+        await tempPool.end().catch(() => undefined);
+        this.logger.warn(
+          `Failed to list databases from maintenance database "${database}". Falling back to current database if needed: ${(error as Error).message}`,
+        );
+      }
+    }
+
+    if (connection.database) {
+      return {
+        rows: [{ datname: connection.database }],
+        rowCount: 1,
+      };
+    }
+
+    return null;
   }
 
   private readEnvFile(): Record<string, string> {

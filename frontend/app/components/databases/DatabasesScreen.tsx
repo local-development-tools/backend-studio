@@ -15,7 +15,17 @@ import {
   query as queryDatabase,
 } from "~/lib/api/databases";
 import { saveSqlPrompt } from "~/lib/api/ai";
-import { getDatabaseSettings, patchDatabaseSettings } from "~/lib/api/settings";
+import {
+  activateDatabaseConnection,
+  getDatabaseConnections,
+  getDatabaseSettings,
+  upsertDatabaseConnection as upsertDatabaseConnectionApi,
+  type DatabaseConnectionResponse,
+} from "~/lib/api/settings";
+import {
+  type DatabaseConnectionProfile,
+  upsertDatabaseConnection,
+} from "~/lib/db-connections";
 import { toast } from "sonner";
 import { Database, Minus, Plus, RotateCcw, TriangleAlert } from "lucide-react";
 import { Button } from "../ui/button";
@@ -44,14 +54,18 @@ type TableDisplayPreferenceMap = Record<string, TableDisplayPreference>;
 type TableSelectionMap = Record<string, string>;
 type QueryDraftMap = Record<string, string>;
 
-const getTablePreferenceKey = (database: string, schema: string, table?: string) =>
-  `${database || "__no_db__"}::${schema || "public"}::${table || "__ad_hoc__"}`;
+const getTablePreferenceKey = (
+  connectionId: string,
+  database: string,
+  schema: string,
+  table?: string,
+) => `${connectionId || "__no_connection__"}::${database || "__no_db__"}::${schema || "public"}::${table || "__ad_hoc__"}`;
 
-const getTableSelectionKey = (database: string, schema: string) =>
-  `${database || "__no_db__"}::${schema || "public"}`;
+const getTableSelectionKey = (connectionId: string, database: string, schema: string) =>
+  `${connectionId || "__no_connection__"}::${database || "__no_db__"}::${schema || "public"}`;
 
-const getQueryDraftKey = (database: string, schema: string) =>
-  `${database || "__no_db__"}::${schema || "public"}`;
+const getQueryDraftKey = (connectionId: string, database: string, schema: string) =>
+  `${connectionId || "__no_connection__"}::${database || "__no_db__"}::${schema || "public"}`;
 
 const sanitizeFontScale = (value: number) =>
   Math.min(MAX_FONT_SCALE, Math.max(MIN_FONT_SCALE, value));
@@ -84,15 +98,15 @@ const loadTableSelections = (): TableSelectionMap => {
   }
 };
 
-const getPersistedTableSelection = (database: string, schema: string) => {
+const getPersistedTableSelection = (connectionId: string, database: string, schema: string) => {
   const selections = loadTableSelections();
-  return selections[getTableSelectionKey(database, schema)] ?? "";
+  return selections[getTableSelectionKey(connectionId, database, schema)] ?? "";
 };
 
-const saveTableSelection = (database: string, schema: string, table: string) => {
+const saveTableSelection = (connectionId: string, database: string, schema: string, table: string) => {
   try {
     const selections = loadTableSelections();
-    selections[getTableSelectionKey(database, schema)] = table;
+    selections[getTableSelectionKey(connectionId, database, schema)] = table;
     localStorage.setItem(TABLE_SELECTION_STORAGE_KEY, JSON.stringify(selections));
   } catch {
     // Ignore persistence errors.
@@ -113,22 +127,35 @@ const loadQueryDrafts = (): QueryDraftMap => {
   }
 };
 
-const getPersistedQueryDraft = (database: string, schema: string) => {
+const getPersistedQueryDraft = (connectionId: string, database: string, schema: string) => {
   const drafts = loadQueryDrafts();
-  return drafts[getQueryDraftKey(database, schema)] ?? "";
+  return drafts[getQueryDraftKey(connectionId, database, schema)] ?? "";
 };
 
-const saveQueryDraft = (database: string, schema: string, query: string) => {
+const saveQueryDraft = (connectionId: string, database: string, schema: string, query: string) => {
   try {
     const drafts = loadQueryDrafts();
-    drafts[getQueryDraftKey(database, schema)] = query;
+    drafts[getQueryDraftKey(connectionId, database, schema)] = query;
     localStorage.setItem(QUERY_DRAFT_STORAGE_KEY, JSON.stringify(drafts));
   } catch {
     // Ignore persistence errors.
   }
 };
 
+const mapApiConnection = (connection: DatabaseConnectionResponse): DatabaseConnectionProfile => ({
+  id: connection.id,
+  name: connection.name,
+  host: connection.host,
+  port: connection.port,
+  username: connection.username,
+  database: connection.database,
+  passwordSet: connection.passwordSet,
+});
+
 export const DatabasesScreen = () => {
+  const [connections, setConnections] = useState<DatabaseConnectionProfile[]>([]);
+  const [activeConnectionId, setActiveConnectionIdState] = useState<string | null>(null);
+  const [isSwitchingConnection, setIsSwitchingConnection] = useState(false);
   const [selectedDatabase, setSelectedDatabase] = useState("");
   const [selectedSchema, setSelectedSchema] = useState("public");
   const [selectedTable, setSelectedTable] = useState<string>("");
@@ -147,8 +174,10 @@ export const DatabasesScreen = () => {
   const [tableDisplayPrefs, setTableDisplayPrefs] = useState<TableDisplayPreferenceMap>({});
   const [promptsSidebarOpen, setPromptsSidebarOpen] = useState(false);
   const [promptsRefreshToken, setPromptsRefreshToken] = useState(0);
+  const activeConnectionKey = activeConnectionId ?? "__default_connection__";
 
   const tablePreferenceKey = getTablePreferenceKey(
+    activeConnectionKey,
     selectedDatabase,
     selectedSchema,
     selectedTable || undefined,
@@ -182,7 +211,7 @@ export const DatabasesScreen = () => {
   ) => {
     setSqlQuery(nextSql);
     if (!database) return;
-    saveQueryDraft(database, schema, nextSql);
+    saveQueryDraft(activeConnectionKey, database, schema, nextSql);
   };
 
   const loadTablesForDatabase = async (
@@ -203,10 +232,10 @@ export const DatabasesScreen = () => {
       const availableTableNames = new Set(tableList.map((table) => table.name));
 
       const persistedSelection = restorePersistedSelection
-        ? getPersistedTableSelection(database, schema)
+        ? getPersistedTableSelection(activeConnectionKey, database, schema)
         : "";
       const persistedQueryDraft = restorePersistedSelection
-        ? getPersistedQueryDraft(database, schema)
+        ? getPersistedQueryDraft(activeConnectionKey, database, schema)
         : "";
       const hasPersistedQueryDraft = persistedQueryDraft.trim().length > 0;
 
@@ -291,6 +320,54 @@ export const DatabasesScreen = () => {
     }
   };
 
+  const persistConnections = (nextConnections: DatabaseConnectionProfile[]) => {
+    setConnections(nextConnections);
+  };
+
+  const setActiveConnection = (connectionId: string) => {
+    setActiveConnectionIdState(connectionId);
+  };
+
+  const applyConnection = async (
+    connection: DatabaseConnectionProfile,
+    options?: { silentSuccessToast?: boolean },
+  ) => {
+    setIsSwitchingConnection(true);
+    setIsLoadingDatabases(true);
+    setIsDbConnected(null);
+    setSelectedDatabase("");
+    setSelectedSchema("public");
+    setSelectedTable("");
+    setTables([]);
+    setQueryResults(null);
+
+    try {
+      const activated = await activateDatabaseConnection(connection.id);
+      const syncedConnections = activated.connections.map(mapApiConnection);
+      persistConnections(syncedConnections);
+
+      setActiveConnection(activated.activeConnectionId ?? connection.id);
+      setIsDbConnected(activated.settings.connected);
+
+      if (!activated.settings.connected) {
+        setIsLoadingDatabases(false);
+        return;
+      }
+
+      await loadDatabases((activated.settings.database ?? connection.database) || undefined);
+      if (!options?.silentSuccessToast) {
+        toast.success(`Switched connection to ${connection.name || connection.host}`);
+      }
+    } catch (error) {
+      console.error("Failed to switch database connection", error);
+      setIsDbConnected(false);
+      setIsLoadingDatabases(false);
+      toast.error("Failed to switch database connection");
+    } finally {
+      setIsSwitchingConnection(false);
+    }
+  };
+
   // Load databases on mount.
   useEffect(() => {
     setTableDisplayPrefs(loadTableDisplayPreferences());
@@ -298,11 +375,40 @@ export const DatabasesScreen = () => {
     const initialize = async () => {
       try {
         const settings = await getDatabaseSettings();
+        let activeConnection: DatabaseConnectionProfile | undefined;
+        try {
+          const connectionsResponse = await getDatabaseConnections();
+          const mappedConnections = connectionsResponse.connections.map(mapApiConnection);
+          if (mappedConnections.length > 0) {
+            persistConnections(mappedConnections);
+            const fallbackActiveId = connectionsResponse.activeConnectionId ?? mappedConnections[0].id;
+            setActiveConnection(fallbackActiveId);
+            activeConnection =
+              mappedConnections.find((connection) => connection.id === fallbackActiveId) ??
+              mappedConnections[0];
+          }
+        } catch {
+          activeConnection = undefined;
+        }
+
         setIsDbConnected(settings.connected);
 
         if (!settings.connected) {
           setIsLoadingDatabases(false);
           return;
+        }
+
+        if (activeConnection) {
+          const settingsMatchActiveConnection =
+            settings.host === activeConnection.host &&
+            settings.port === activeConnection.port &&
+            settings.database === activeConnection.database &&
+            settings.username === activeConnection.username;
+
+          if (!settingsMatchActiveConnection) {
+            await applyConnection(activeConnection, { silentSuccessToast: true });
+            return;
+          }
         }
 
         await loadDatabases(settings.database ?? undefined);
@@ -416,7 +522,7 @@ export const DatabasesScreen = () => {
     }
 
     if (persistSelection) {
-      saveTableSelection(selectedDatabase, schema, table);
+      saveTableSelection(activeConnectionKey, selectedDatabase, schema, table);
     }
 
     const escapedTable = table.replace(/"/g, '""');
@@ -441,11 +547,14 @@ export const DatabasesScreen = () => {
     setSelectedDatabase(newDb);
     // Save to localStorage as default
     localStorage.setItem(STORAGE_KEY, newDb);
+  };
 
-    void patchDatabaseSettings({ database: newDb }).catch((error) => {
-      console.error("Failed to sync selected database with settings", error);
-      toast.error("Failed to sync selected database with settings");
-    });
+  const handleConnectionChange = (connectionId: string) => {
+    const nextConnection = connections.find((connection) => connection.id === connectionId);
+    if (!nextConnection) {
+      return;
+    }
+    void applyConnection(nextConnection);
   };
 
   const handleDataUpdate = (updatedData: Record<string, any>[]) => {
@@ -463,6 +572,29 @@ export const DatabasesScreen = () => {
   const handleDatabaseCloned = (newDatabase?: string) => {
     setIsDbConnected(true);
     setIsLoadingDatabases(true);
+
+    if (newDatabase && activeConnectionId) {
+      const activeConnection = connections.find((connection) => connection.id === activeConnectionId);
+      if (activeConnection) {
+        const nextConnections = upsertDatabaseConnection(connections, {
+          ...activeConnection,
+          database: newDatabase,
+        });
+        persistConnections(nextConnections);
+
+        void upsertDatabaseConnectionApi({
+          id: activeConnection.id,
+          name: activeConnection.name,
+          host: activeConnection.host,
+          port: activeConnection.port,
+          username: activeConnection.username,
+          database: newDatabase,
+        }).catch(() => {
+          // Keep local state when backend sync is temporarily unavailable.
+        });
+      }
+    }
+
     void loadDatabases(newDatabase);
   };
 
@@ -553,6 +685,10 @@ export const DatabasesScreen = () => {
       <ResizablePanel defaultSize="15%" minSize="15%" maxSize="40%">
         <div className="flex flex-col h-full border-r border-border bg-background">
           <DatabaseSelector
+            connections={connections}
+            activeConnectionId={activeConnectionId}
+            onConnectionChange={handleConnectionChange}
+            isSwitchingConnection={isSwitchingConnection}
             selectedDatabase={selectedDatabase}
             selectedSchema={selectedSchema}
             databases={databases}

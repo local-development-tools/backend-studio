@@ -1,14 +1,17 @@
-import { Injectable } from '@nestjs/common';
+import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { existsSync, readFileSync, statSync, writeFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { DatabasesService } from 'src/databases/databases.service';
 import { DatabaseSettingsDto } from './dto/database-settings.dto';
 import { AiSettingsDto } from './dto/ai-settings.dto';
 import { PostgresConnectionDto } from './dto/postgres-connection.dto';
+import { DatabaseConnectionUpsertDto } from './dto/database-connection.dto';
 
 type EnvMap = Record<string, string>;
 
 const DB_KEYS = ['DB_HOST', 'DB_PORT', 'DB_USER', 'DB_PASSWORD', 'DB_NAME'] as const;
+const DB_CONNECTIONS_KEY = 'DB_CONNECTIONS_B64';
+const DB_ACTIVE_CONNECTION_ID_KEY = 'DB_ACTIVE_CONNECTION_ID';
 const AI_KEYS = [
   'OPENAI_API_KEY',
   'ANTHROPIC_API_KEY',
@@ -25,6 +28,101 @@ export class SettingsService {
 
   constructor(private readonly databasesService: DatabasesService) {}
 
+  getDatabaseConnections() {
+    const env = this.readEnvFile();
+    const activeConnectionId = env[DB_ACTIVE_CONNECTION_ID_KEY] ?? null;
+    const connections = this.readDatabaseConnections(env).map((connection) => ({
+      id: connection.id,
+      name: connection.name,
+      host: connection.host,
+      port: connection.port,
+      username: connection.username,
+      database: connection.database,
+      passwordSet: connection.password !== undefined,
+    }));
+
+    return {
+      activeConnectionId,
+      connections,
+    };
+  }
+
+  upsertDatabaseConnection(connectionDto: DatabaseConnectionUpsertDto) {
+    const env = this.readEnvFile();
+    const connections = this.readDatabaseConnections(env);
+
+    const normalized = this.normalizeDatabaseConnection(connectionDto, connections);
+    const existingIndex = connections.findIndex((connection) => connection.id === normalized.id);
+    if (existingIndex === -1) {
+      connections.push(normalized);
+    } else {
+      connections[existingIndex] = {
+        ...connections[existingIndex],
+        ...normalized,
+        password:
+          normalized.password !== undefined
+            ? normalized.password
+            : connections[existingIndex].password,
+      };
+    }
+
+    if (!env[DB_ACTIVE_CONNECTION_ID_KEY]) {
+      env[DB_ACTIVE_CONNECTION_ID_KEY] = normalized.id;
+    }
+
+    this.writeDatabaseConnections(env, connections);
+    this.writeEnvFile(env);
+    this.applyToProcessEnv(env);
+
+    return this.getDatabaseConnections();
+  }
+
+  async setActiveDatabaseConnection(connectionId: string) {
+    const env = this.readEnvFile();
+    const connections = this.readDatabaseConnections(env);
+    const nextActive = connections.find((connection) => connection.id === connectionId);
+
+    if (!nextActive) {
+      throw new NotFoundException(`Database connection not found: ${connectionId}`);
+    }
+
+    env[DB_ACTIVE_CONNECTION_ID_KEY] = nextActive.id;
+    this.applyConnectionToEnv(env, nextActive);
+    this.writeEnvFile(env);
+    this.applyToProcessEnv(env);
+
+    const dbConnection = this.getDbConnectionFromEnv(env);
+    if (dbConnection) {
+      await this.databasesService.connect(dbConnection);
+    }
+
+    return {
+      ...this.getDatabaseConnections(),
+      settings: this.toPublicDatabaseSettings(env),
+    };
+  }
+
+  deleteDatabaseConnection(connectionId: string) {
+    const env = this.readEnvFile();
+    const connections = this.readDatabaseConnections(env);
+    const nextConnections = connections.filter((connection) => connection.id !== connectionId);
+
+    this.writeDatabaseConnections(env, nextConnections);
+
+    if (env[DB_ACTIVE_CONNECTION_ID_KEY] === connectionId) {
+      if (nextConnections.length === 0) {
+        delete env[DB_ACTIVE_CONNECTION_ID_KEY];
+      } else {
+        env[DB_ACTIVE_CONNECTION_ID_KEY] = nextConnections[0].id;
+      }
+    }
+
+    this.writeEnvFile(env);
+    this.applyToProcessEnv(env);
+
+    return this.getDatabaseConnections();
+  }
+
   getDatabaseSettings() {
     const env = this.readEnvFile();
     return this.toPublicDatabaseSettings(env);
@@ -33,6 +131,7 @@ export class SettingsService {
   async upsertDatabaseSettings(settingsDto: DatabaseSettingsDto) {
     const env = this.readEnvFile();
     this.applyDatabaseSettings(env, settingsDto);
+    this.syncActiveConnectionFromEnv(env);
     this.writeEnvFile(env);
     this.applyToProcessEnv(env);
 
@@ -57,6 +156,7 @@ export class SettingsService {
 
     await this.databasesService.disconnect();
 
+    this.syncActiveConnectionFromEnv(env, true);
     this.writeEnvFile(env);
     this.applyToProcessEnv(env);
 
@@ -166,7 +266,7 @@ export class SettingsService {
   }
 
   private applyToProcessEnv(env: EnvMap): void {
-    for (const key of [...DB_KEYS, ...AI_KEYS]) {
+    for (const key of [...DB_KEYS, DB_CONNECTIONS_KEY, DB_ACTIVE_CONNECTION_ID_KEY, ...AI_KEYS]) {
       const value = env[key];
       if (value === undefined) {
         delete process.env[key];
@@ -233,6 +333,147 @@ export class SettingsService {
       password,
       database,
     };
+  }
+
+  private applyConnectionToEnv(env: EnvMap, connection: {
+    host: string;
+    port: number;
+    username: string;
+    password?: string;
+    database: string;
+  }) {
+    env.DB_HOST = connection.host;
+    env.DB_PORT = String(connection.port);
+    env.DB_USER = connection.username;
+    env.DB_NAME = connection.database;
+    if (connection.password !== undefined) {
+      env.DB_PASSWORD = connection.password;
+    }
+  }
+
+  private readDatabaseConnections(env: EnvMap): Array<{
+    id: string;
+    name: string;
+    host: string;
+    port: number;
+    username: string;
+    password?: string;
+    database: string;
+  }> {
+    const encoded = env[DB_CONNECTIONS_KEY];
+    if (!encoded) {
+      return [];
+    }
+
+    try {
+      const raw = Buffer.from(encoded, 'base64').toString('utf8');
+      const parsed = JSON.parse(raw) as Array<Record<string, unknown>>;
+      if (!Array.isArray(parsed)) {
+        return [];
+      }
+
+      return parsed
+        .map((item) => {
+          const id = typeof item.id === 'string' ? item.id : '';
+          const name = typeof item.name === 'string' ? item.name : '';
+          const host = typeof item.host === 'string' ? item.host : '';
+          const port = Number(item.port);
+          const username = typeof item.username === 'string' ? item.username : '';
+          const database = typeof item.database === 'string' ? item.database : '';
+          const password = typeof item.password === 'string' ? item.password : undefined;
+
+          if (!id || !host || !database || !username || !Number.isFinite(port) || port <= 0) {
+            return null;
+          }
+
+          return {
+            id,
+            name,
+            host,
+            port,
+            username,
+            password,
+            database,
+          };
+        })
+        .filter((item): item is NonNullable<typeof item> => item !== null);
+    } catch {
+      return [];
+    }
+  }
+
+  private writeDatabaseConnections(
+    env: EnvMap,
+    connections: Array<{
+      id: string;
+      name: string;
+      host: string;
+      port: number;
+      username: string;
+      password?: string;
+      database: string;
+    }>,
+  ) {
+    if (connections.length === 0) {
+      delete env[DB_CONNECTIONS_KEY];
+      return;
+    }
+
+    const json = JSON.stringify(connections);
+    env[DB_CONNECTIONS_KEY] = Buffer.from(json, 'utf8').toString('base64');
+  }
+
+  private normalizeDatabaseConnection(
+    dto: DatabaseConnectionUpsertDto,
+    existingConnections: Array<{ id: string; password?: string }>,
+  ) {
+    const id = dto.id?.trim();
+    const host = dto.host?.trim();
+    const database = dto.database?.trim();
+    const username = dto.username?.trim();
+    const name = dto.name?.trim() || `${host || 'localhost'} / ${database || 'postgres'}`;
+    const port = Number(dto.port);
+
+    if (!id || !host || !database || !username || !Number.isFinite(port) || port <= 0) {
+      throw new BadRequestException('Invalid database connection payload');
+    }
+
+    const existing = existingConnections.find((connection) => connection.id === id);
+
+    return {
+      id,
+      name,
+      host,
+      port,
+      username,
+      database,
+      password: dto.password !== undefined ? dto.password : existing?.password,
+    };
+  }
+
+  private syncActiveConnectionFromEnv(env: EnvMap, clearActivePassword = false) {
+    const activeId = env[DB_ACTIVE_CONNECTION_ID_KEY];
+    if (!activeId) {
+      return;
+    }
+
+    const connections = this.readDatabaseConnections(env);
+    const activeConnection = connections.find((connection) => connection.id === activeId);
+    if (!activeConnection) {
+      return;
+    }
+
+    activeConnection.host = env.DB_HOST ?? activeConnection.host;
+    activeConnection.port = env.DB_PORT ? Number(env.DB_PORT) : activeConnection.port;
+    activeConnection.username = env.DB_USER ?? activeConnection.username;
+    activeConnection.database = env.DB_NAME ?? activeConnection.database;
+    if (clearActivePassword) {
+      delete activeConnection.password;
+    } else if (env.DB_PASSWORD !== undefined) {
+      activeConnection.password = env.DB_PASSWORD;
+    }
+
+    this.writeDatabaseConnections(env, connections);
   }
 
   private toPublicDatabaseSettings(env: EnvMap) {

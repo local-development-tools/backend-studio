@@ -7,21 +7,29 @@ import {
   CardHeader,
   CardTitle,
 } from "~/components/ui/card";
-import {Bot, Database, FolderOpen, Loader2, Palette, TriangleAlert} from "lucide-react";
+import { Bot, Database, FolderOpen, Loader2, Palette, Plus, Trash2, TriangleAlert } from "lucide-react";
 import {Input} from "~/components/ui/input";
 import {Label} from "~/components/ui/label";
 import {useTheme} from "~/components/theme-provider";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "~/components/ui/select";
 import { useEffect, useRef, useState } from "react";
 import {
+  activateDatabaseConnection,
+  deleteDatabaseConnection,
+  getDatabaseConnections,
   getAiSettings,
   getDatabaseSettings,
   getMicroservicesRoot,
   patchAiSettings,
-  patchDatabaseSettings,
   patchMicroservicesRoot,
+  upsertDatabaseConnection as upsertDatabaseConnectionApi,
   type AiProvider,
+  type DatabaseConnectionResponse,
 } from "~/lib/api/settings";
+import {
+  type DatabaseConnectionProfile,
+  getConnectionDisplayName,
+} from "~/lib/db-connections";
 import { Badge } from "~/components/ui/badge";
 import { toast } from "sonner";
 
@@ -40,6 +48,9 @@ export default function Settings() {
   const [dbName, setDbName] = useState("");
   const [dbUser, setDbUser] = useState("");
   const [dbPassword, setDbPassword] = useState("");
+  const [dbConnectionName, setDbConnectionName] = useState("Default connection");
+  const [dbConnections, setDbConnections] = useState<DatabaseConnectionProfile[]>([]);
+  const [activeDbConnectionId, setActiveDbConnectionIdState] = useState<string | null>(null);
   const [dbConnected, setDbConnected] = useState(false);
   const [dbPasswordSet, setDbPasswordSet] = useState(false);
   const [isSavingDb, setIsSavingDb] = useState(false);
@@ -59,15 +70,65 @@ export default function Settings() {
   const [isSavingAi, setIsSavingAi] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
 
+  const persistConnections = (nextConnections: DatabaseConnectionProfile[]) => {
+    setDbConnections(nextConnections);
+  };
+
+  const mapApiConnection = (connection: DatabaseConnectionResponse): DatabaseConnectionProfile => ({
+    id: connection.id,
+    name: connection.name,
+    host: connection.host,
+    port: connection.port,
+    username: connection.username,
+    database: connection.database,
+    passwordSet: connection.passwordSet,
+  });
+
+  const applyConnectionToForm = (connection: DatabaseConnectionProfile) => {
+    setDbConnectionName(connection.name || getConnectionDisplayName(connection));
+    setDbHost(connection.host);
+    setDbPort(String(connection.port));
+    setDbName(connection.database);
+    setDbUser(connection.username);
+    setDbPassword(connection.password ?? "");
+    setDbPasswordSet(Boolean(connection.passwordSet ?? connection.password));
+  };
+
+  const setActiveConnection = (connectionId: string) => {
+    setActiveDbConnectionIdState(connectionId);
+  };
+
   useEffect(() => {
     getDatabaseSettings()
-      .then((db) => {
+      .then(async (db) => {
+        setDbConnected(db.connected);
+        setDbPasswordSet(db.passwordSet);
+
+        try {
+          const connectionsResponse = await getDatabaseConnections();
+          const mappedConnections = connectionsResponse.connections.map(mapApiConnection);
+          if (mappedConnections.length > 0) {
+            const nextActiveId = connectionsResponse.activeConnectionId ?? mappedConnections[0].id;
+            persistConnections(mappedConnections);
+            setActiveConnection(nextActiveId);
+
+            const activeConnection =
+              mappedConnections.find((connection) => connection.id === nextActiveId) ?? mappedConnections[0];
+            if (activeConnection) {
+              applyConnectionToForm(activeConnection);
+            }
+            return;
+          }
+        } catch {
+          // Fall back to local cache + active settings if backend list is unavailable.
+        }
+
         setDbHost(db.host ?? "host.docker.internal");
         setDbPort(db.port ? String(db.port) : "5432");
         setDbName(db.database ?? "");
         setDbUser(db.username ?? "");
-        setDbConnected(db.connected);
-        setDbPasswordSet(db.passwordSet);
+        setDbPassword("");
+        setDbConnectionName("Default connection");
       })
       .catch(() => {});
 
@@ -92,25 +153,64 @@ export default function Settings() {
   }, []);
 
   const handleSaveDb = async () => {
+    if (!activeDbConnectionId) {
+      toast.error("Create or select a connection first");
+      return;
+    }
+
+    const activeConnection = dbConnections.find((connection) => connection.id === activeDbConnectionId);
+    if (!activeConnection) {
+      toast.error("Selected connection not found");
+      return;
+    }
+
     const parsedPort = Number(dbPort);
     if (!Number.isFinite(parsedPort) || parsedPort <= 0) {
       toast.error("Port must be a valid number");
       return;
     }
 
+    const nextConnection: DatabaseConnectionProfile = {
+      ...activeConnection,
+      name: dbConnectionName.trim() || getConnectionDisplayName({
+        ...activeConnection,
+        host: dbHost.trim(),
+        database: dbName.trim(),
+      }),
+      host: dbHost.trim(),
+      port: parsedPort,
+      database: dbName.trim(),
+      username: dbUser.trim(),
+      password: dbPassword.trim() ? dbPassword : activeConnection.password,
+      passwordSet: dbPassword.trim() ? true : activeConnection.passwordSet,
+    };
+
     setIsSavingDb(true);
     try {
-      const saved = await patchDatabaseSettings({
-        host: dbHost.trim(),
-        port: parsedPort,
-        database: dbName.trim(),
-        username: dbUser.trim(),
+      const synced = await upsertDatabaseConnectionApi({
+        id: nextConnection.id,
+        name: nextConnection.name,
+        host: nextConnection.host,
+        port: nextConnection.port,
+        username: nextConnection.username,
+        database: nextConnection.database,
         ...(dbPassword.trim() ? { password: dbPassword } : {}),
       });
 
-      setDbConnected(saved.connected);
-      setDbPasswordSet(saved.passwordSet);
-      setDbPassword("");
+      const syncedConnections = synced.connections.map(mapApiConnection);
+      persistConnections(syncedConnections);
+
+      const nextActiveId = synced.activeConnectionId ?? nextConnection.id;
+      setActiveConnection(nextActiveId);
+
+      const activated = await activateDatabaseConnection(nextActiveId);
+      const activatedConnections = activated.connections.map(mapApiConnection);
+      persistConnections(activatedConnections);
+
+      setDbPasswordSet(Boolean(nextConnection.passwordSet ?? nextConnection.password));
+      setDbConnected(activated.settings.connected);
+      setDbConnectionName(nextConnection.name);
+      setDbPassword(nextConnection.password ?? "");
       toast.success("Database settings saved");
     } catch {
       toast.error("Failed to save database settings");
@@ -171,6 +271,95 @@ export default function Settings() {
     }
   };
 
+  const handleSelectConnection = (connectionId: string) => {
+    const selectedConnection = dbConnections.find((connection) => connection.id === connectionId);
+    if (!selectedConnection) return;
+
+    setActiveConnection(connectionId);
+    applyConnectionToForm(selectedConnection);
+    void activateDatabaseConnection(connectionId)
+      .then((response) => {
+        const nextConnections = response.connections.map(mapApiConnection);
+        persistConnections(nextConnections);
+        setDbConnected(response.settings.connected);
+      })
+      .catch(() => {
+        setDbConnected(false);
+      });
+  };
+
+  const handleAddConnection = () => {
+    const nextConnection: DatabaseConnectionProfile = {
+      id: `conn_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
+      name: `Connection ${dbConnections.length + 1}`,
+      host: "host.docker.internal",
+      port: 5432,
+      database: "",
+      username: "postgres",
+      password: "",
+      passwordSet: false,
+    };
+
+    const nextConnections = [...dbConnections, nextConnection];
+    persistConnections(nextConnections);
+    setActiveConnection(nextConnection.id);
+    applyConnectionToForm(nextConnection);
+    setDbConnected(false);
+    setDbPasswordSet(false);
+  };
+
+  const handleRemoveConnection = () => {
+    if (!activeDbConnectionId) {
+      return;
+    }
+
+    if (dbConnections.length <= 1) {
+      toast.error("At least one connection must remain");
+      return;
+    }
+
+    void deleteDatabaseConnection(activeDbConnectionId)
+      .then((response) => {
+        const nextConnections = response.connections.map(mapApiConnection);
+        persistConnections(nextConnections);
+
+        const fallbackConnection = response.activeConnectionId
+          ? nextConnections.find((connection) => connection.id === response.activeConnectionId)
+          : nextConnections[0];
+
+        if (!fallbackConnection) {
+          setActiveDbConnectionIdState(null);
+          setDbConnectionName("Default connection");
+          setDbHost("");
+          setDbPort("5432");
+          setDbName("");
+          setDbUser("");
+          setDbPassword("");
+          setDbConnected(false);
+          setDbPasswordSet(false);
+          return;
+        }
+
+        setActiveConnection(fallbackConnection.id);
+        applyConnectionToForm(fallbackConnection);
+        setDbConnected(false);
+      })
+      .catch(() => {
+        const nextConnections = dbConnections.filter((connection) => connection.id !== activeDbConnectionId);
+        persistConnections(nextConnections);
+
+        const fallbackConnection = nextConnections[0];
+        if (!fallbackConnection) {
+          return;
+        }
+
+        setActiveConnection(fallbackConnection.id);
+        applyConnectionToForm(fallbackConnection);
+        setDbConnected(false);
+        setDbPasswordSet(Boolean(fallbackConnection.passwordSet ?? fallbackConnection.password));
+      });
+  };
+
   return (
     <div className="flex flex-col p-8 gap-4 h-full overflow-y-auto">
       <div className="flex flex-col">
@@ -191,6 +380,53 @@ export default function Settings() {
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
+            <div className="grid grid-cols-[1fr_auto] gap-2 items-end">
+              <div className="space-y-2">
+                <Label htmlFor="saved-connection">Saved Connections</Label>
+                <Select
+                  value={activeDbConnectionId ?? ""}
+                  onValueChange={handleSelectConnection}
+                >
+                  <SelectTrigger id="saved-connection">
+                    <SelectValue placeholder="Select connection" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {dbConnections.map((connection) => (
+                      <SelectItem key={connection.id} value={connection.id}>
+                        {getConnectionDisplayName(connection)}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="flex items-center gap-2">
+                <Button type="button" variant="outline" onClick={handleAddConnection} className="gap-1.5">
+                  <Plus className="h-4 w-4" />
+                  Add Connection
+                </Button>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  onClick={handleRemoveConnection}
+                  disabled={dbConnections.length <= 1}
+                  title="Remove selected connection"
+                >
+                  <Trash2 className="h-4 w-4" />
+                </Button>
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="connection-name">Connection Name</Label>
+              <Input
+                id="connection-name"
+                placeholder="Local PostgreSQL"
+                value={dbConnectionName}
+                onChange={(e) => setDbConnectionName(e.target.value)}
+              />
+            </div>
+
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label htmlFor="host">Host</Label>
@@ -246,7 +482,7 @@ export default function Settings() {
               <span>Password: {dbPasswordSet ? "set" : "not set"}</span>
             </div>
             <Button className="w-full" onClick={handleSaveDb} disabled={isSavingDb}>
-              {isSavingDb ? <Loader2 className="h-4 w-4 animate-spin" /> : "Save Database Settings"}
+              {isSavingDb ? <Loader2 className="h-4 w-4 animate-spin" /> : "Save Active Connection"}
             </Button>
           </CardContent>
         </Card>
