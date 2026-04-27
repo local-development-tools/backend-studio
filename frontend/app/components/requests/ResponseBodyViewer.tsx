@@ -43,11 +43,6 @@ export const ResponseBodyViewer = ({ body }: ResponseBodyViewerProps) => {
       const modelUri = `grpc-response://body-${uriId}.json`;
       const model = monaco.editor.createModel(displayContent, language, monaco.Uri.parse(modelUri));
       editor.setModel(model);
-
-      // Fold all top-level nodes after a short delay so the layout is complete
-      if (isJson) {
-        setTimeout(() => editor.getAction('editor.foldLevel2')?.run(), 150);
-      }
     },
     // displayContent intentionally excluded — model is set once on mount
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -62,11 +57,8 @@ export const ResponseBodyViewer = ({ body }: ResponseBodyViewerProps) => {
     if (!model) return;
     if (model.getValue() !== displayContent) {
       model.pushEditOperations([], [{ range: model.getFullModelRange(), text: displayContent }], () => null);
-      if (isJson) {
-        setTimeout(() => editor.getAction('editor.foldLevel2')?.run(), 150);
-      }
     }
-  }, [displayContent, isJson]);
+  }, [displayContent]);
 
   const resolvedTheme =
     theme === 'system'
