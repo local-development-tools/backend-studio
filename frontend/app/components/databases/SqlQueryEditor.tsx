@@ -47,13 +47,18 @@ export const SqlQueryEditor = ({
 
   useEffect(() => {
     let cancelled = false;
-    void import("@monaco-editor/react").then((mod) => {
-      if (cancelled) return;
-      const Comp = mod.Editor ?? mod.default;
-      if (typeof Comp === "function") {
-        setMonacoEditor(() => Comp as ComponentType<EditorProps>);
-      }
-    });
+    void import("@monaco-editor/react")
+      .then((mod) => {
+        if (cancelled) return;
+        // Named export is memo(); typeof is "object", not "function"
+        const Comp = mod.Editor ?? mod.default;
+        if (Comp != null) {
+          setMonacoEditor(() => Comp as ComponentType<EditorProps>);
+        }
+      })
+      .catch((err) => {
+        console.error("Failed to load @monaco-editor/react", err);
+      });
     return () => {
       cancelled = true;
     };
