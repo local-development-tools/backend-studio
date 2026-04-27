@@ -1,5 +1,5 @@
-import { useState, useRef, useEffect, useCallback, useMemo } from "react";
-import Editor, { type OnMount } from "@monaco-editor/react";
+import { useState, useRef, useEffect, useCallback, useMemo, type ComponentType } from "react";
+import type { EditorProps, OnMount } from "@monaco-editor/react";
 import type * as Monaco from "monaco-editor";
 import { Button } from "../ui/button";
 import { BookmarkPlus, PanelRight, Play } from "lucide-react";
@@ -42,7 +42,22 @@ export const SqlQueryEditor = ({
   completionContext,
 }: SqlQueryEditorProps) => {
   const { theme } = useTheme();
+  const [monacoEditor, setMonacoEditor] = useState<ComponentType<EditorProps> | null>(null);
   const [aiHelpOpen, setAiHelpOpen] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    void import("@monaco-editor/react").then((mod) => {
+      if (cancelled) return;
+      const Comp = mod.Editor ?? mod.default;
+      if (typeof Comp === "function") {
+        setMonacoEditor(() => Comp as ComponentType<EditorProps>);
+      }
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
   const editorRef = useRef<Parameters<OnMount>[0] | null>(null);
   const monacoRef = useRef<Parameters<OnMount>[1] | null>(null);
   const completionDisposableRef = useRef<{ dispose: () => void } | null>(null);
@@ -237,6 +252,8 @@ export const SqlQueryEditor = ({
     [],
   );
 
+  const MonacoSqlEditor = monacoEditor;
+
   return (
     <div className="flex h-full flex-col overflow-hidden">
       <div className="flex flex-shrink-0 flex-row items-center justify-between border-b border-border pb-3">
@@ -283,28 +300,34 @@ export const SqlQueryEditor = ({
       </div>
 
       <div className="mt-4 flex min-h-0 flex-1 flex-col overflow-hidden rounded-md border border-border">
-        <Editor
-          defaultLanguage="sql"
-          height="100%"
-          theme={monacoTheme}
-          onMount={handleMount}
-          onChange={(v) => onChange(v ?? "")}
-          options={{
-            minimap: { enabled: false },
-            fontSize: 13,
-            fontFamily: "ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace",
-            lineNumbers: "on",
-            scrollBeyondLastLine: false,
-            wordWrap: "on",
-            tabSize: 2,
-            automaticLayout: true,
-            readOnly: isExecuting,
-            scrollbar: { verticalScrollbarSize: 8, horizontalScrollbarSize: 8 },
-            padding: { top: 8, bottom: 8 },
-            suggest: { showKeywords: true, showSnippets: false },
-            quickSuggestions: { strings: true, comments: false, other: true },
-          }}
-        />
+        {MonacoSqlEditor ? (
+          <MonacoSqlEditor
+            defaultLanguage="sql"
+            height="100%"
+            theme={monacoTheme}
+            onMount={handleMount}
+            onChange={(v) => onChange(v ?? "")}
+            options={{
+              minimap: { enabled: false },
+              fontSize: 13,
+              fontFamily: "ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace",
+              lineNumbers: "on",
+              scrollBeyondLastLine: false,
+              wordWrap: "on",
+              tabSize: 2,
+              automaticLayout: true,
+              readOnly: isExecuting,
+              scrollbar: { verticalScrollbarSize: 8, horizontalScrollbarSize: 8 },
+              padding: { top: 8, bottom: 8 },
+              suggest: { showKeywords: true, showSnippets: false },
+              quickSuggestions: { strings: true, comments: false, other: true },
+            }}
+          />
+        ) : (
+          <div className="flex min-h-[12rem] flex-1 items-center justify-center bg-muted/20 text-xs text-muted-foreground">
+            Loading editor…
+          </div>
+        )}
       </div>
     </div>
   );
