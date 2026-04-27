@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import { Link } from "react-router";
 import { DatabaseSelector } from "./DatabaseSelector";
 import { TablesList, type Table } from "./TablesList";
@@ -170,6 +170,7 @@ export const DatabasesScreen = () => {
   const [isLoadingTables, setIsLoadingTables] = useState(false);
   const [primaryKey, setPrimaryKey] = useState("id");
   const [columnEnumValues, setColumnEnumValues] = useState<Record<string, string[]>>({});
+  const [selectedTableColumns, setSelectedTableColumns] = useState<string[]>([]);
   const [isDbConnected, setIsDbConnected] = useState<boolean | null>(null);
   const [tableDisplayPrefs, setTableDisplayPrefs] = useState<TableDisplayPreferenceMap>({});
   const [promptsSidebarOpen, setPromptsSidebarOpen] = useState(false);
@@ -469,6 +470,7 @@ export const DatabasesScreen = () => {
   useEffect(() => {
     if (!selectedDatabase || !selectedTable) {
       setColumnEnumValues({});
+      setSelectedTableColumns([]);
       return;
     }
 
@@ -482,13 +484,24 @@ export const DatabasesScreen = () => {
           setPrimaryKey(tableSchema.primaryKey);
         }
         setColumnEnumValues(enumValues);
+        setSelectedTableColumns(tableSchema.columns.map((c) => c.column_name));
       } catch (error) {
         console.error("Failed to load column metadata", error);
+        setSelectedTableColumns([]);
       }
     };
 
     void loadColumnMeta();
-  }, [selectedDatabase, selectedTable]);
+  }, [selectedDatabase, selectedTable, selectedSchema]);
+
+  const sqlCompletionContext = useMemo(
+    () => ({
+      schema: selectedSchema,
+      tableNames: tables.map((t) => t.name),
+      columnNames: selectedTableColumns,
+    }),
+    [selectedSchema, tables, selectedTableColumns],
+  );
 
   const handleExecuteQuery = async (
     sql: string,
@@ -734,6 +747,7 @@ export const DatabasesScreen = () => {
                       onTogglePrompts={() => setPromptsSidebarOpen((current) => !current)}
                       isExecuting={isExecuting}
                       selectedSchema={selectedSchema}
+                      completionContext={sqlCompletionContext}
                     />
                   </div>
                 </ResizablePanel>

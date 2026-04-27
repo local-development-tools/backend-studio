@@ -91,15 +91,15 @@ export const HttpRequestEditor = ({ request, onChange, onSend, envSelector }: Ht
           {envSelector && <div className="ml-auto pr-1">{envSelector}</div>}
         </div>
         <TabsContent value="params" className="flex-1 m-0 mt-2 min-h-0 overflow-auto">
-          <div className="space-y-4">
-            <div>
+          <div className="flex flex-row items-start gap-4">
+            <div className="min-w-0 flex-1">
               <div className="mb-1 px-1 text-[10px] uppercase tracking-wide text-muted-foreground">Path params</div>
               <KeyValueEditor
                 items={request.pathParams}
                 onChange={(pathParams) => onChange({ ...request, pathParams })}
               />
             </div>
-            <div>
+            <div className="min-w-0 flex-1">
               <div className="mb-1 px-1 text-[10px] uppercase tracking-wide text-muted-foreground">Query params</div>
               <KeyValueEditor
                 items={request.queryParams}
