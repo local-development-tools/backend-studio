@@ -56,13 +56,10 @@ import {
   updateFolder,
 } from "~/lib/api/requests/fileStructure/folders";
 import {
-  buildRequestUrl,
   buildUrlWithQuery,
   parseBodyToApi,
   parseBodyToEditor,
-  syncPathParamsWithUrl,
-  toKeyValuePairs,
-  toKeyValueRecord,
+  parseUrlParts,
   toHeaderPairs,
   toHeaderRecord,
   toResponsePanelModel,
@@ -165,27 +162,20 @@ export default function Requests() {
         let mappedRequest: Request;
 
         if (data.type === "http") {
-          const pathParams = syncPathParamsWithUrl(
-            data.url,
-            toKeyValuePairs(data.pathParams ?? {}),
-          );
-          const queryParts = new URL(data.url, "http://placeholder.local");
+          const parsed = parseUrlParts(data.url);
           mappedRequest = {
             id: data.id,
             name: data.name,
             type: "http",
             method: data.method as HttpMethod,
-            url: data.url,
-            pathParams,
+            url: parsed.url,
             headers: data.headers
               ? Object.entries(data.headers).map(([key, value]) => ({
                   key,
                   value,
                 }))
               : [],
-            queryParams: Array.from(queryParts.searchParams.entries()).map(
-              ([key, value]) => ({key, value}),
-            ),
+            queryParams: parsed.queryParams,
             body:
               typeof data.body === "string" || data.body == null
                 ? (data.body ?? "")
@@ -285,7 +275,6 @@ export default function Requests() {
         ? {
             ...base,
             url: buildUrlWithQuery(updated.url, updated.queryParams),
-            pathParams: toKeyValueRecord(updated.pathParams),
             headers: toHeaderRecord(updated.headers),
             body: parseBodyToApi(updated.body),
             postScript: updated.postScript ?? "",
@@ -338,7 +327,6 @@ export default function Requests() {
               selectedRequest.url,
               selectedRequest.queryParams,
             ),
-            pathParams: toKeyValueRecord(selectedRequest.pathParams),
             headers: toHeaderRecord(selectedRequest.headers),
             body: parseBodyToApi(selectedRequest.body),
             postScript: selectedRequest.postScript ?? "",
@@ -354,15 +342,13 @@ export default function Requests() {
             name: selectedRequest.name,
             method: selectedRequest.method,
             url: interpolateVariables(
-              buildRequestUrl(
+              buildUrlWithQuery(
                 selectedRequest.url,
-                selectedRequest.pathParams,
                 selectedRequest.queryParams,
               ),
               collectionId,
               envVars,
             ),
-            pathParams: toKeyValueRecord(selectedRequest.pathParams),
             headers: toHeaderRecord(
               selectedRequest.headers.map((h) => ({
                 key: h.key,

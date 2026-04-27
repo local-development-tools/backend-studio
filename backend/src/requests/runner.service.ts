@@ -6,28 +6,6 @@ import { RequestHttpService } from './request-http.service';
 import { RunRequestResult } from './run-request-result.interface';
 import { RequestsService } from './requests.service';
 
-const resolveRequestUrl = (url: string, pathParams?: Record<string, string>): string => {
-  if (!pathParams || Object.keys(pathParams).length === 0) {
-    return url;
-  }
-
-  const replacePathParams = (input: string) =>
-    input.replace(/:([A-Za-z0-9_]+)/g, (match, key: string) => {
-      if (!(key in pathParams)) {
-        return match;
-      }
-      return encodeURIComponent(pathParams[key] ?? '');
-    });
-
-  try {
-    const parsed = new URL(url);
-    parsed.pathname = replacePathParams(parsed.pathname);
-    return parsed.toString();
-  } catch {
-    return replacePathParams(url);
-  }
-};
-
 @Injectable()
 export class RunnerService {
   constructor(
@@ -61,7 +39,7 @@ export class RunnerService {
     return this.requestHttpService.run({
       requestId: id,
       method: parsed.method,
-      url: resolveRequestUrl(parsed.url, parsed.pathParams),
+      url: parsed.url,
       headers: parsed.headers,
       body: parsed.body,
     });

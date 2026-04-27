@@ -4,7 +4,6 @@ export interface CreateRequestPayload {
     name: string;
     method: string;
     url: string;
-    pathParams?: Record<string, string>;
     headers?: Record<string, string>;
     body?: unknown;
     collectionId?: string;
@@ -17,7 +16,6 @@ export interface ApiRequest {
     name: string;
     method: string;
     url: string;
-    pathParams?: Record<string, string>;
     headers?: Record<string, string>;
     body?: unknown;
     serverAddress?: string;
