@@ -186,10 +186,7 @@ export default function Requests() {
             queryParams: Array.from(queryParts.searchParams.entries()).map(
               ([key, value]) => ({key, value}),
             ),
-            body:
-              typeof data.body === "string" || data.body == null
-                ? (data.body ?? "")
-                : JSON.stringify(data.body),
+            body: parseBodyToEditor(data.body),
             postScript: data.postScript,
             collectionId: data.collectionId ?? undefined,
           };
