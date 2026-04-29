@@ -59,7 +59,17 @@ export async function query(queryText: string, params?: unknown[], schema?: stri
   });
 
   if (!res.ok) {
-    throw new Error(`Failed to run query: ${res.status}`);
+    let details = `Failed to run query: ${res.status}`;
+    try {
+      const body = await res.json();
+      const message = Array.isArray((body as any).message)
+        ? (body as any).message.join(", ")
+        : (body as any).message ?? (body as any).error ?? null;
+      details = message || (body as any).error || details;
+    } catch {
+      // ignore JSON parse errors and keep fallback details
+    }
+    throw new Error(details);
   }
 
   const payload = (await res.json()) as BackendQueryResponse;
