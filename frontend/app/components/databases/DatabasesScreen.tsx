@@ -162,6 +162,7 @@ export const DatabasesScreen = () => {
   const [sqlQuery, setSqlQuery] = useState("SELECT * FROM users LIMIT 10;");
   const [isExecuting, setIsExecuting] = useState(false);
   const [queryResults, setQueryResults] = useState<any>(null);
+  const [queryError, setQueryError] = useState<string | null>(null);
 
   const [databases, setDatabases] = useState<string[]>([]);
   const [tables, setTables] = useState<Table[]>([]);
@@ -509,8 +510,10 @@ export const DatabasesScreen = () => {
     options?: { silentSuccessToast?: boolean },
   ) => {
     setIsExecuting(true);
+    setQueryError(null);
     try {
       const result = await queryDatabase(sql, undefined, schema);
+      setQueryError(null);
       setQueryResults({
         data: result.data,
         rowCount: result.rowCount,
@@ -519,8 +522,11 @@ export const DatabasesScreen = () => {
         toast.success("Query executed successfully");
       }
     } catch (error) {
-      toast.error("Query execution failed");
-      console.error(error);
+      const message = error instanceof Error ? error.message : String(error ?? "Query execution failed");
+      setQueryResults(null);
+      setQueryError(message || "Query execution failed");
+      toast.error(message || "Query execution failed");
+      console.error("Query execution error:", error);
     } finally {
       setIsExecuting(false);
     }
@@ -756,7 +762,12 @@ export const DatabasesScreen = () => {
 
                 <ResizablePanel defaultSize="45%" minSize="20%">
                   <div className="h-full p-4 overflow-hidden flex flex-col">
-                    {queryResults ? (
+                    {queryError ? (
+                      <div className="w-full rounded-lg border border-destructive/40 bg-destructive/10 p-4 text-sm text-destructive">
+                        <div className="mb-1 font-medium">Query error</div>
+                        <div className="whitespace-pre-wrap break-words">{queryError}</div>
+                      </div>
+                    ) : queryResults ? (
                       <>
                         <div className="mb-2 flex items-center justify-between gap-3 flex-shrink-0">
                           <h3 className="text-xs font-medium text-muted-foreground">
