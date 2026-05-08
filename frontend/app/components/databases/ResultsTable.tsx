@@ -241,7 +241,7 @@ export const ResultsTable = ({
       </div>
       <div
         className="flex-1 min-h-0 overflow-auto"
-        style={{ paddingBottom: 20, scrollbarGutter: 'stable' }}
+        style={{ paddingBottom: 10, scrollbarGutter: 'stable' }}
       >
         <table
           className="table-fixed"
