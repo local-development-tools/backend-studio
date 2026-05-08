@@ -951,8 +951,8 @@ export class AiService {
       .replace(/['"`]+\s*$/, '')
       .replace(/[ \t]+\n/g, '\n')
       .replace(/\n{3,}/g, '\n\n')
-      .replace(/[\n\t]+/g, ' ')
-      .replace(/\s{2,}/g, ' ')
+      .replace(/\t+/g, '\t')
+      .replace(/\s+$/gm, '')
       .trim();
   }
 

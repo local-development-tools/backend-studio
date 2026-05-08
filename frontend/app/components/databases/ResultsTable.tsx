@@ -239,7 +239,10 @@ export const ResultsTable = ({
       <div className="text-xs text-muted-foreground">
         {rowCount !== undefined ? `${rowCount} rows` : `${localData.length} rows`}
       </div>
-      <div className="flex-1 min-h-0 overflow-auto">
+      <div
+        className="flex-1 min-h-0 overflow-auto"
+        style={{ paddingBottom: 10, scrollbarGutter: 'stable' }}
+      >
         <table
           className="table-fixed"
           style={{
