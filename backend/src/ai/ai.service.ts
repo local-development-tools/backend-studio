@@ -228,8 +228,8 @@ export class AiService {
   }
 
   async saveSqlPrompt(input: { sql: string; title?: string; question?: string }): Promise<{ fileName: string }> {
-    const sql = input.sql?.trim();
-    if (!sql) {
+    const sql = input.sql;
+    if (!sql?.trim()) {
       throw new BadRequestException('SQL is required');
     }
 
@@ -250,10 +250,10 @@ export class AiService {
       '',
       input.question?.trim() || input.title?.trim() || '(manual save)',
       '',
-      '## Parsed Result',
+      '## SQL',
       '',
-      '```json',
-      JSON.stringify({ sql, explanation: null }, null, 2),
+      '```sql',
+      sql,
       '```',
       '',
     ].join('\n');
@@ -687,11 +687,15 @@ export class AiService {
       // input.rawResponse || '(empty)',
       // '```',
       // '',
-      '## Parsed Result',
+      '## SQL',
       '',
-      '```json',
-      JSON.stringify(input.parsedResponse, null, 2),
+      '```sql',
+      input.parsedResponse.sql,
       '```',
+      '',
+      '## Explanation',
+      '',
+      input.parsedResponse.explanation?.trim() || '(empty)',
       '',
     ].join('\n');
 
@@ -757,6 +761,14 @@ export class AiService {
     sql?: string;
     explanation?: string;
   } {
+    const rawSqlMatch = content.match(/##\s+SQL\s*\n\s*```(?:sql)?\s*\n([\s\S]*?)\n```/i);
+    if (rawSqlMatch) {
+      return {
+        sql: rawSqlMatch[1],
+        explanation: this.readMarkdownSection(content, 'Explanation') ?? undefined,
+      };
+    }
+
     const blockMatch = content.match(/##\s+Parsed Result\s*\n\s*```json\s*\n([\s\S]*?)\n```/i);
     if (!blockMatch) {
       return {};

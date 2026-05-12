@@ -1,3 +1,4 @@
+import { formatSql } from "~/lib/sql/formatSql";
 import {useEffect, useMemo, useState} from "react";
 import {Button} from "../ui/button";
 import {ScrollArea} from "../ui/scroll-area";
@@ -9,8 +10,7 @@ import {
   type AiPromptDetail,
   type AiPromptListItem,
 } from "~/lib/api/ai";
-import { formatSql } from "~/lib/sql/formatSql";
-
+ 
 interface PromptsSidebarProps {
   open: boolean;
   onClose: () => void;
@@ -63,7 +63,6 @@ export const PromptsSidebar = ({
       setLoading(false);
     }
   };
-
   useEffect(() => {
     if (!open) return;
     void loadItems();
@@ -91,25 +90,28 @@ export const PromptsSidebar = ({
     void loadDetail();
   }, [open, selectedFile]);
 
-  const formattedSql = detail?.sql ? formatSql(detail.sql) : "";
+  const isManualSave = detail?.provider === "user";
+  const savedSql = detail?.sql 
+    ? (isManualSave ? detail.sql : formatSql(detail.sql))
+    : "";
 
   const handleCopySql = async () => {
-    if (!formattedSql) {
+    if (!savedSql) {
       toast.error("No SQL available in this prompt");
       return;
     }
 
-    await navigator.clipboard.writeText(formattedSql);
+    await navigator.clipboard.writeText(savedSql);
     toast.success("SQL copied");
   };
 
   const handlePasteSql = () => {
-    if (!formattedSql) {
+    if (!savedSql) {
       toast.error("No SQL available in this prompt");
       return;
     }
 
-    onPasteSql(formattedSql);
+    onPasteSql(savedSql);
     toast.success("SQL pasted into editor");
   };
 
@@ -199,8 +201,8 @@ export const PromptsSidebar = ({
                   </div>
                   <div>
                     <p className="text-xs text-muted-foreground uppercase">SQL</p>
-                    <pre className="mt-1 rounded border border-border bg-muted/20 p-2 text-xs whitespace-pre-wrap break-words">
-                      {formattedSql || "(no SQL in this entry)"}
+                    <pre className="mt-1 rounded border border-border bg-muted/20 p-2 text-xs whitespace-pre-wrap break-words font-mono">
+                      {savedSql || "(no SQL in this entry)"}
                     </pre>
                   </div>
                   {detail.explanation && (
