@@ -230,3 +230,14 @@ body {
     @apply bg-background text-foreground;
   }
 }
+
+/* Hide scrollbar chrome while preserving scroll behavior. */
+.hide-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+.hide-scrollbar::-webkit-scrollbar {
+  width: 0;
+  height: 0;
+}
