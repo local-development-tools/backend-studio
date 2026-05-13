@@ -1,0 +1,20 @@
+meta {
+  name: updatePromptQuestion
+  type: http
+  seq: 6
+}
+
+patch {
+  url: http://localhost:3000/ai/prompts/:fileName/question
+  body: json
+  auth: inherit
+}
+
+body:json {
+    {"question": ""}
+}
+
+settings {
+  encodeUrl: true
+  timeout: 0
+}
