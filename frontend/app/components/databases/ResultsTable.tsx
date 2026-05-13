@@ -28,6 +28,10 @@ interface ResultsTableProps {
   fontScale?: number;
   columnWidths?: Record<string, number>;
   onColumnWidthsChange?: (columnWidths: Record<string, number>) => void;
+  jsonEditOpen: boolean;
+  setJsonEditOpen: React.Dispatch<React.SetStateAction<boolean>>;
+  jsonPayload: string;
+  setJsonPayload: React.Dispatch<React.SetStateAction<string>>;
 }
 
 const DEFAULT_COLUMN_WIDTH = 140;

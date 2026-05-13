@@ -945,6 +945,10 @@ export const DatabasesScreen = ({
                             fontScale={fontScale}
                             columnWidths={columnWidths}
                             onColumnWidthsChange={handleColumnWidthsChange}
+                            jsonEditOpen={jsonEditOpen}
+                            setJsonEditOpen={setJsonEditOpen}
+                            jsonPayload={jsonPayload}
+                            setJsonPayload={setJsonPayload}
                           />
                         </div>
                       </>
