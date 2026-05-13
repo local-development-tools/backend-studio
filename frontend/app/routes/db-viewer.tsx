@@ -35,7 +35,12 @@ export default function DbViewer() {
 
   return (
     <div className="flex h-full min-h-0 flex-col overflow-hidden bg-background">
-      <DatabasesScreen />
+      <DatabasesScreen
+        jsonEditOpen={jsonEditOpen}
+        setJsonEditOpen={setJsonEditOpen}
+        jsonPayload={jsonPayload}
+        setJsonPayload={setJsonPayload}
+      />
 
       {jsonEditOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
