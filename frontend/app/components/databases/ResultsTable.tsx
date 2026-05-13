@@ -32,6 +32,7 @@ interface ResultsTableProps {
   setJsonEditOpen: React.Dispatch<React.SetStateAction<boolean>>;
   jsonPayload: string;
   setJsonPayload: React.Dispatch<React.SetStateAction<string>>;
+  jsonSaveTrigger: number;
 }
 
 const DEFAULT_COLUMN_WIDTH = 140;
@@ -235,6 +236,8 @@ export const ResultsTable = ({
     setEditingCell({rowIdx, col});
     setEditValue(String(value ?? ""));
   };
+
+  
 
   const handleSave = async (rowIdx: number, col: string) => {
     if (!table) {

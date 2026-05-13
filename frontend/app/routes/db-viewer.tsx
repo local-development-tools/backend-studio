@@ -16,6 +16,8 @@ export default function DbViewer() {
     JSON.stringify({test: true}, null, 2),
   );
 
+  const [jsonSaveTrigger, setJsonSaveTrigger] = useState(0);
+
   const handleSave = () => {
     try {
       const parsed = JSON.parse(jsonPayload);
@@ -40,6 +42,7 @@ export default function DbViewer() {
         setJsonEditOpen={setJsonEditOpen}
         jsonPayload={jsonPayload}
         setJsonPayload={setJsonPayload}
+        jsonSaveTrigger={jsonSaveTrigger}
       />
 
       {jsonEditOpen && (
