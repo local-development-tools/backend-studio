@@ -1,0 +1,15 @@
+meta {
+  name: listPrompts
+  type: http
+  seq: 6
+}
+
+get {
+  url: http://localhost:3000/ai/prompts
+  auth: inherit
+}
+
+settings {
+  encodeUrl: true
+  timeout: 0
+}

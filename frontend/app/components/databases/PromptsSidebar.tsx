@@ -2,9 +2,10 @@ import { formatSql } from "~/lib/sql/formatSql";
 import {useEffect, useMemo, useState} from "react";
 import {Button} from "../ui/button";
 import {ScrollArea} from "../ui/scroll-area";
-import {Copy, RefreshCw, X} from "lucide-react";
+import {Copy, RefreshCw, Trash2, X} from "lucide-react";
 import {toast} from "sonner";
 import {
+  deleteAiPrompt,
   getAiPromptByFileName,
   listAiPrompts,
   type AiPromptDetail,
@@ -115,6 +116,34 @@ export const PromptsSidebar = ({
     toast.success("SQL pasted into editor");
   };
 
+  const deletePrompt = async (fileName: string) => {
+  const confirmed = window.confirm(
+    "Are you sure you want to delete this prompt? This action cannot be undone."
+  );
+
+  if (!confirmed) return;
+
+  try {
+    await deleteAiPrompt(fileName);
+
+    toast.success("Prompt deleted");
+
+    if (selectedFile === fileName) {
+      setSelectedFile(null);
+      setDetail(null);
+    }
+
+    await loadItems();
+  } catch (error) {
+    const message =
+      error instanceof Error
+        ? error.message
+        : "Failed to delete prompt";
+
+    toast.error(message);
+  }
+};
+
   if (!open) return null;
 
   return (
@@ -144,23 +173,48 @@ export const PromptsSidebar = ({
               <p className="text-xs text-muted-foreground p-2">No prompt files found yet.</p>
             ) : (
               items.map((item) => (
-                <button
+                <div
                   key={item.fileName}
-                  className={`w-full rounded-md border p-2 text-left transition-colors ${
+                  className={`group relative w-full rounded-md border transition-colors ${
                     item.fileName === selectedFile
                       ? "border-primary/40 bg-primary/10"
                       : "border-border hover:bg-muted/40"
                   }`}
-                  onClick={() => setSelectedFile(item.fileName)}
                 >
-                  <p className="text-[0.7rem] text-muted-foreground">{formatTimestamp(item.timestamp)}</p>
-                  <p className="text-xs font-medium line-clamp-2 mt-0.5">
-                    {item.question || "(no question)"}
-                  </p>
-                  <p className="text-[0.65rem] text-muted-foreground mt-1">
-                    {item.provider || "unknown"} {item.model ? `- ${item.model}` : ""}
-                  </p>
-                </button>
+                  <button
+                    className="w-full p-2 text-left"
+                    onClick={() => setSelectedFile(item.fileName)}
+                  >
+                    <p className="text-[0.7rem] text-muted-foreground">
+                      {formatTimestamp(item.timestamp)}
+                    </p>
+
+                    <p className="mt-0.5 line-clamp-2 text-xs font-medium">
+                      {item.question || "(no question)"}
+                    </p>
+
+                    <p className="mt-1 text-[0.65rem] text-muted-foreground">
+                      {item.provider || "unknown"}{" "}
+                      {item.model ? `- ${item.model}` : ""}
+                    </p>
+                  </button>
+
+                  <Button
+                    variant="ghost"
+                    size="icon-xs"
+                    className={`absolute right-2 top-2 transition-opacity ${
+                      item.fileName === selectedFile
+                        ? "opacity-100"
+                        : "opacity-0 group-hover:opacity-100"
+                    }`}                    
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      void deletePrompt(item.fileName);
+                    }}
+                  >
+                    <Trash2 className="h-3 w-3" />
+                  </Button>
+                </div>
               ))
             )}
           </div>
