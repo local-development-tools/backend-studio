@@ -512,22 +512,41 @@ export const DatabasesScreen = () => {
     setIsExecuting(true);
     setQueryError(null);
     try {
-      const result = await queryDatabase(sql, undefined, schema);
-      setQueryError(null);
-      setQueryResults({
-        data: result.data,
-        rowCount: result.rowCount,
-      });
-      if (!options?.silentSuccessToast) {
-        toast.success("Query executed successfully");
-      }
-    } catch (error) {
-      const message = error instanceof Error ? error.message : String(error ?? "Query execution failed");
-      setQueryResults(null);
-      setQueryError(message || "Query execution failed");
-      toast.error(message || "Query execution failed");
-      console.error("Query execution error:", error);
-    } finally {
+    const result = await queryDatabase(sql, undefined, schema);
+
+    const formattedData = result.data.map((row: Record<string, unknown>) =>
+      Object.fromEntries(
+        Object.entries(row).map(([key, value]) => [
+          key,
+          typeof value === "object" && value !== null
+            ? JSON.stringify(value, null, 2)
+            : value,
+        ]),
+      ),
+    );
+
+    setQueryError(null);
+
+    setQueryResults({
+      data: formattedData,
+      rowCount: result.rowCount,
+    });
+
+    if (!options?.silentSuccessToast) {
+      toast.success("Query executed successfully");
+    }
+  } catch (error) {
+    const message =
+      error instanceof Error
+        ? error.message
+        : String(error ?? "Query execution failed");
+
+    setQueryResults(null);
+    setQueryError(message || "Query execution failed");
+    toast.error(message || "Query execution failed");
+
+    console.error("Query execution error:", error);
+  } finally {
       setIsExecuting(false);
     }
   };
