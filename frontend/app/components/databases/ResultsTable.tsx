@@ -62,7 +62,7 @@ const estimateColumnWidthFromValues = (
   const headerWidth = measureTextWidth(column.toUpperCase(), headerFont);
   const maxValueWidth = rows.reduce((maxWidth, row) => {
     const value = row[column];
-    const printable =
+    const printable = 
       value === null || value === undefined
         ? "NULL"
         : String(value).slice(0, 40);
