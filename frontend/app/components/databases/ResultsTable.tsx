@@ -91,6 +91,11 @@ export const ResultsTable = ({
   fontScale = 100,
   columnWidths = {},
   onColumnWidthsChange,
+
+  jsonEditOpen,
+  setJsonEditOpen,
+  jsonPayload,
+  setJsonPayload,
 }: ResultsTableProps) => {
   const [editingCell, setEditingCell] = useState<{
     rowIdx: number;
@@ -214,8 +219,21 @@ export const ResultsTable = ({
   };
 
   const handleCellClick = (rowIdx: number, col: string) => {
+    const value = localData[rowIdx][col];
+
+    if (isJsonValue(value)) {
+      setJsonPayload(
+        typeof value === "string"
+          ? JSON.stringify(JSON.parse(value), null, 2)
+          : JSON.stringify(value, null, 2),
+      );
+
+      setJsonEditOpen(true);
+      return;
+    }
+
     setEditingCell({rowIdx, col});
-    setEditValue(String(localData[rowIdx][col] ?? ""));
+    setEditValue(String(value ?? ""));
   };
 
   const handleSave = async (rowIdx: number, col: string) => {
