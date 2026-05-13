@@ -66,7 +66,7 @@ const estimateColumnWidthFromValues = (
   const headerWidth = measureTextWidth(column.toUpperCase(), headerFont);
   const maxValueWidth = rows.reduce((maxWidth, row) => {
     const value = row[column];
-    const printable = 
+    const printable =
       value === null || value === undefined
         ? "NULL"
         : String(value).slice(0, 40);
@@ -202,6 +202,16 @@ export const ResultsTable = ({
       <div className="text-sm text-muted-foreground p-4">No results found</div>
     );
   }
+
+  const isJsonValue = (value: any) => {
+    if (typeof value !== "string") return false;
+    try {
+      const parsed = JSON.parse(value);
+      return typeof parsed === "object" && parsed !== null;
+    } catch {
+      return false;
+    }
+  };
 
   const handleCellClick = (rowIdx: number, col: string) => {
     setEditingCell({rowIdx, col});
