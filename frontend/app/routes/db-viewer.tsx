@@ -1,6 +1,7 @@
 import {DatabasesScreen} from "~/components/databases/DatabasesScreen";
 import type {Route} from "./+types/db-viewer";
 import {useState} from "react";
+import { JsonEditor } from "~/components/databases/JsonEditor";
 
 export function meta({}: Route.MetaArgs) {
   return [
@@ -52,36 +53,14 @@ export default function DbViewer() {
           <div className="w-[600px] rounded-lg bg-background border border-border p-4">
             <div className="mb-2 font-semibold">Edit JSON</div>
 
-            <textarea
-              className="w-full h-[300px] font-mono text-sm p-2 border rounded"
-              value={jsonPayload}
-              onChange={(e) => setJsonPayload(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === "Tab") {
-                  e.preventDefault();
-
-                  const textarea = e.currentTarget;
-                  const start = textarea.selectionStart;
-                  const end = textarea.selectionEnd;
-
-                  const newValue =
-                    jsonPayload.substring(0, start) +
-                    "  " +
-                    jsonPayload.substring(end);
-
-                  setJsonPayload(newValue);
-
-                  setTimeout(() => {
-                    textarea.selectionStart = textarea.selectionEnd = start + 2;
-                  }, 0);
-                }
-              }}
-            />
+            <JsonEditor value={jsonPayload} onChange={setJsonPayload} />
 
             <div className="mt-3 flex justify-end gap-2">
               <button
                 className="px-3 py-1 border rounded"
-                onClick={() => {setJsonCancelTrigger((prev) => prev + 1)}}
+                onClick={() => {
+                  setJsonCancelTrigger((prev) => prev + 1);
+                }}
               >
                 Cancel
               </button>
