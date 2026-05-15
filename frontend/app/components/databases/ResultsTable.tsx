@@ -380,8 +380,8 @@ export const ResultsTable = ({
           : `${localData.length} rows`}
       </div>
       <div
-        className="flex-1 min-h-0 overflow-auto"
-        style={{paddingBottom: 10, scrollbarGutter: "stable"}}
+        className={`flex-1 min-h-0 overflow-auto ${localData.length === 1 ? "hide-scrollbar" : ""}`}
+        style={{ paddingBottom: 10, scrollbarGutter: "stable" }}
       >
         <table
           className="table-fixed"

@@ -761,8 +761,7 @@ export const DatabasesScreen = ({
   };
 
   const handleSaveSql = async (sql: string) => {
-    const trimmedSql = sql.trim();
-    if (!trimmedSql) {
+    if (!sql.trim()) {
       toast.error("SQL is empty");
       return;
     }
@@ -778,7 +777,7 @@ export const DatabasesScreen = ({
 
     try {
       await saveSqlPrompt({
-        sql: trimmedSql,
+        sql,
         title: finalTitle,
         question: finalTitle,
       });

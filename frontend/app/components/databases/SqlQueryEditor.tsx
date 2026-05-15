@@ -2,7 +2,7 @@ import { useState, useRef, useEffect, useCallback, useMemo, type ComponentType }
 import type { EditorProps, OnMount } from "@monaco-editor/react";
 import type * as Monaco from "monaco-editor";
 import { Button } from "../ui/button";
-import { BookmarkPlus, PanelRight, Play } from "lucide-react";
+import { BookmarkPlus, PanelRight, Play, Wand2 } from "lucide-react";
 import { AIHelpDialog } from "./AIHelpDialog";
 import { formatSql } from "~/lib/sql/formatSql";
 import { inferCompletionScope } from "~/lib/sql/inferCompletionScope";
@@ -113,6 +113,15 @@ export const SqlQueryEditor = ({
     }
     setAiHelpOpen(false);
   };
+
+  const handleFormat = useCallback(() => {
+    const text = editorRef.current?.getModel()?.getValue() ?? value;
+    const formatted = formatSql(text);
+    if (formatted !== text) {
+      onChange(formatted);
+    }
+    editorRef.current?.focus();
+  }, [onChange, value]);
 
   const resolvedTheme =
     theme === "system"
@@ -264,6 +273,17 @@ export const SqlQueryEditor = ({
       <div className="flex flex-shrink-0 flex-row items-center justify-between border-b border-border pb-3">
         <h2 className="text-sm font-semibold">SQL Query</h2>
         <div className="flex items-center gap-2">
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={handleFormat}
+            disabled={!value.trim()}
+            className="gap-2"
+            title="Format SQL"
+          >
+            <Wand2 className="h-4 w-4" />
+            Format
+          </Button>
           <AIHelpDialog
             open={aiHelpOpen}
             onOpenChange={setAiHelpOpen}

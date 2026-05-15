@@ -1,0 +1,21 @@
+meta {
+  name: saveSqlPrompt
+  type: http
+  seq: 6
+}
+
+post {
+  url: http://localhost:3000/ai/prompts/sql
+  body: json
+  auth: inherit
+}
+
+body:json {
+    {"sql": "",
+    "question":""}
+}
+
+settings {
+  encodeUrl: true
+  timeout: 0
+}

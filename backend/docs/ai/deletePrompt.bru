@@ -1,0 +1,15 @@
+meta {
+  name: deletePrompt
+  type: http
+  seq: 6
+}
+
+delete {
+  url: http://localhost:3000/ai/prompts/:fileName
+  auth: inherit
+}
+
+settings {
+  encodeUrl: true
+  timeout: 0
+}
