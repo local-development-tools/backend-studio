@@ -1,5 +1,11 @@
-import { useEffect, useMemo, useRef, useState, type MouseEvent as ReactMouseEvent } from "react";
-import { Input } from "../ui/input";
+import {
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type MouseEvent as ReactMouseEvent,
+} from "react";
+import {Input} from "../ui/input";
 import {
   Select,
   SelectContent,
@@ -7,9 +13,9 @@ import {
   SelectTrigger,
   SelectValue,
 } from "../ui/select";
-import { Check, X } from "lucide-react";
-import { editRecord } from "~/lib/api/databases";
-import { toast } from "sonner";
+import {Check, X} from "lucide-react";
+import {editRecord} from "~/lib/api/databases";
+import {toast} from "sonner";
 
 interface ResultsTableProps {
   data: Record<string, any>[];
@@ -22,6 +28,12 @@ interface ResultsTableProps {
   fontScale?: number;
   columnWidths?: Record<string, number>;
   onColumnWidthsChange?: (columnWidths: Record<string, number>) => void;
+  jsonEditOpen: boolean;
+  setJsonEditOpen: React.Dispatch<React.SetStateAction<boolean>>;
+  jsonPayload: string;
+  setJsonPayload: React.Dispatch<React.SetStateAction<string>>;
+  jsonSaveTrigger: number;
+  jsonCancelTrigger: number;
 }
 
 const DEFAULT_COLUMN_WIDTH = 140;
@@ -56,7 +68,10 @@ const estimateColumnWidthFromValues = (
   const headerWidth = measureTextWidth(column.toUpperCase(), headerFont);
   const maxValueWidth = rows.reduce((maxWidth, row) => {
     const value = row[column];
-    const printable = value === null || value === undefined ? "NULL" : String(value);
+    const printable =
+      value === null || value === undefined
+        ? "NULL"
+        : String(value).slice(0, 40);
     return Math.max(maxWidth, measureTextWidth(printable, cellFont));
   }, 0);
 
@@ -78,15 +93,27 @@ export const ResultsTable = ({
   fontScale = 100,
   columnWidths = {},
   onColumnWidthsChange,
+
+  jsonEditOpen,
+  setJsonEditOpen,
+  jsonPayload,
+  setJsonPayload,
+  jsonSaveTrigger,
+  jsonCancelTrigger,
 }: ResultsTableProps) => {
   const [editingCell, setEditingCell] = useState<{
+    rowIdx: number;
+    col: string;
+  } | null>(null);
+  const [editingJsonCell, setEditingJsonCell] = useState<{
     rowIdx: number;
     col: string;
   } | null>(null);
   const [editValue, setEditValue] = useState("");
   const [isSaving, setIsSaving] = useState(false);
   const [localData, setLocalData] = useState(data);
-  const [liveColumnWidths, setLiveColumnWidths] = useState<Record<string, number>>(columnWidths);
+  const [liveColumnWidths, setLiveColumnWidths] =
+    useState<Record<string, number>>(columnWidths);
   const [resizingColumn, setResizingColumn] = useState<{
     column: string;
     startX: number;
@@ -107,11 +134,18 @@ export const ResultsTable = ({
     liveColumnWidthsRef.current = liveColumnWidths;
   }, [liveColumnWidths]);
 
-  const columns = useMemo(() => (localData.length > 0 ? Object.keys(localData[0]) : []), [localData]);
+  const columns = useMemo(
+    () => (localData.length > 0 ? Object.keys(localData[0]) : []),
+    [localData],
+  );
   const autoColumnWidths = useMemo(
     () =>
       columns.reduce<Record<string, number>>((acc, column) => {
-        acc[column] = estimateColumnWidthFromValues(localData, column, fontScale);
+        acc[column] = estimateColumnWidthFromValues(
+          localData,
+          column,
+          fontScale,
+        );
         return acc;
       }, {}),
     [columns, fontScale, localData],
@@ -120,13 +154,19 @@ export const ResultsTable = ({
     () =>
       columns.reduce<Record<string, number>>((acc, column) => {
         acc[column] =
-          liveColumnWidths[column] ?? autoColumnWidths[column] ?? DEFAULT_COLUMN_WIDTH;
+          liveColumnWidths[column] ??
+          autoColumnWidths[column] ??
+          DEFAULT_COLUMN_WIDTH;
         return acc;
       }, {}),
     [autoColumnWidths, columns, liveColumnWidths],
   );
   const tableWidth = useMemo(
-    () => columns.reduce((sum, column) => sum + (resolvedColumnWidths[column] ?? 0), 0),
+    () =>
+      columns.reduce(
+        (sum, column) => sum + (resolvedColumnWidths[column] ?? 0),
+        0,
+      ),
     [columns, resolvedColumnWidths],
   );
   const fontSizeRem = (0.55 * (fontScale / 100)).toFixed(3);
@@ -162,9 +202,77 @@ export const ResultsTable = ({
     };
   }, [onColumnWidthsChange, resizingColumn]);
 
+  const handleJsonSave = async (rowIdx: number, col: string) => {
+    if (!table) {
+      toast.error("Table information required");
+      return;
+    }
+
+    const primaryKeyValue = localData[rowIdx][primaryKey];
+    if (primaryKeyValue === undefined) {
+      toast.error(`Primary key '${primaryKey}' is missing in result row`);
+      return;
+    }
+
+    console.log(
+      `index (i think) \n collumn: ${editingJsonCell?.col} \n row: ${editingJsonCell?.rowIdx}`,
+    ); //the kept collumn id (starts from 0)
+    console.log(`primaryKeyValue ${localData[rowIdx][primaryKey]}`); //the displayed collumn id (starts from 1)
+
+    setIsSaving(true);
+
+    try {
+      const valueToSave = jsonPayload ? jsonPayload : null;
+
+      await editRecord({
+        table,
+        values: {
+          [col]: valueToSave,
+        },
+        where: {
+          [primaryKey]: primaryKeyValue,
+        },
+      });
+
+      const updatedData = [...localData];
+      updatedData[rowIdx] = {
+        ...updatedData[rowIdx],
+        [col]: valueToSave,
+      };
+
+      setLocalData(updatedData);
+      onDataUpdate?.(updatedData);
+
+      setEditingCell(null);
+      toast.success("Record updated successfully");
+    } catch (error) {
+      toast.error("Failed to update record");
+      console.error(error);
+    } finally {
+      setIsSaving(false);
+      setEditingJsonCell(null);
+      setJsonEditOpen(false);
+      setJsonPayload("");
+    }
+  };
+
+  useEffect(() => {
+    if (!jsonSaveTrigger) return;
+    if (!jsonPayload) return;
+    if (editingJsonCell?.rowIdx == null || editingJsonCell?.col == null) return;
+
+    void handleJsonSave(editingJsonCell?.rowIdx, editingJsonCell?.col);
+  }, [jsonSaveTrigger]);
+
+  useEffect(() => {
+    handleCancel()
+  }, [jsonCancelTrigger]);
+
   if (isLoading) {
     return (
-      <div className="text-sm text-muted-foreground p-4">Loading results...</div>
+      <div className="text-sm text-muted-foreground p-4">
+        Loading results...
+      </div>
     );
   }
 
@@ -174,9 +282,32 @@ export const ResultsTable = ({
     );
   }
 
+  const isJsonValue = (value: any) => {
+    if (typeof value !== "string") return false;
+    try {
+      const parsed = JSON.parse(value);
+      return typeof parsed === "object" && parsed !== null;
+    } catch {
+      return false;
+    }
+  };
+
   const handleCellClick = (rowIdx: number, col: string) => {
-    setEditingCell({ rowIdx, col });
-    setEditValue(String(localData[rowIdx][col] ?? ""));
+    const value = localData[rowIdx][col];
+
+    if (isJsonValue(value)) {
+      setJsonPayload(
+        typeof value === "string"
+          ? JSON.stringify(JSON.parse(value), null, 2)
+          : JSON.stringify(value, null, 2),
+      );
+      setEditingJsonCell({rowIdx, col});
+      setJsonEditOpen(true);
+      return;
+    }
+
+    setEditingCell({rowIdx, col});
+    setEditValue(String(value ?? ""));
   };
 
   const handleSave = async (rowIdx: number, col: string) => {
@@ -195,15 +326,15 @@ export const ResultsTable = ({
     try {
       await editRecord({
         table,
-        values: { [col]: editValue || null },
-        where: { [primaryKey]: primaryKeyValue },
+        values: {[col]: editValue || null},
+        where: {[primaryKey]: primaryKeyValue},
       });
 
       const updatedData = [...localData];
       updatedData[rowIdx][col] = editValue;
       setLocalData(updatedData);
       onDataUpdate?.(updatedData);
-      
+
       setEditingCell(null);
       toast.success("Record updated successfully");
     } catch (error) {
@@ -217,6 +348,10 @@ export const ResultsTable = ({
   const handleCancel = () => {
     setEditingCell(null);
     setEditValue("");
+
+    setEditingJsonCell(null);
+    setJsonPayload("");
+    setJsonEditOpen(false);
   };
 
   const handleColumnResizeStart = (
@@ -226,7 +361,10 @@ export const ResultsTable = ({
     event.preventDefault();
     event.stopPropagation();
 
-    const width = liveColumnWidthsRef.current[column] ?? autoColumnWidths[column] ?? DEFAULT_COLUMN_WIDTH;
+    const width =
+      liveColumnWidthsRef.current[column] ??
+      autoColumnWidths[column] ??
+      DEFAULT_COLUMN_WIDTH;
     setResizingColumn({
       column,
       startX: event.clientX,
@@ -237,7 +375,9 @@ export const ResultsTable = ({
   return (
     <div className="flex flex-col flex-1 gap-2">
       <div className="text-xs text-muted-foreground">
-        {rowCount !== undefined ? `${rowCount} rows` : `${localData.length} rows`}
+        {rowCount !== undefined
+          ? `${rowCount} rows`
+          : `${localData.length} rows`}
       </div>
       <div
         className={`flex-1 min-h-0 overflow-auto ${localData.length === 1 ? "hide-scrollbar" : ""}`}
@@ -253,7 +393,7 @@ export const ResultsTable = ({
           <colgroup>
             {columns.map((col) => {
               const width = resolvedColumnWidths[col] ?? DEFAULT_COLUMN_WIDTH;
-              return <col key={`col-${col}`} style={{ width }} />;
+              return <col key={`col-${col}`} style={{width}} />;
             })}
           </colgroup>
           <thead className="sticky top-0 bg-muted/30 border-b border-border">
@@ -275,21 +415,31 @@ export const ResultsTable = ({
           </thead>
           <tbody>
             {localData.map((row, idx) => (
-              <tr key={idx} className="border-b border-border hover:bg-muted/30 transition-colors">
+              <tr
+                key={idx}
+                className="border-b border-border hover:bg-muted/30 transition-colors"
+              >
                 {columns.map((col) => {
-                  const isEditing = editingCell?.rowIdx === idx && editingCell.col === col;
+                  const isEditing =
+                    editingCell?.rowIdx === idx && editingCell.col === col;
+                  const isJsonEditing =
+                    editingJsonCell?.rowIdx === idx &&
+                    editingJsonCell.col === col;
                   return (
                     <td
                       key={`${idx}-${col}`}
                       className="px-3 py-2 font-mono overflow-hidden"
                       onClick={() => {
-                        if (!isEditing) {
+                        if (!isEditing && !isJsonEditing) {
                           handleCellClick(idx, col);
                         }
                       }}
                     >
                       {isEditing ? (
-                        <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
+                        <div
+                          className="flex items-center gap-1"
+                          onClick={(e) => e.stopPropagation()}
+                        >
                           {columnEnumValues[col] ? (
                             <Select
                               value={editValue}
@@ -312,7 +462,7 @@ export const ResultsTable = ({
                                   <SelectItem
                                     key={option}
                                     value={option}
-                                    style={{ fontSize: editorFontSize }}
+                                    style={{fontSize: editorFontSize}}
                                   >
                                     {option}
                                   </SelectItem>
@@ -361,7 +511,14 @@ export const ResultsTable = ({
                           </button>
                         </div>
                       ) : (
-                        <div className="cursor-pointer truncate" title={row[col] !== null && row[col] !== undefined ? String(row[col]) : "NULL"}>
+                        <div
+                          className="cursor-pointer truncate"
+                          title={
+                            row[col] !== null && row[col] !== undefined
+                              ? String(row[col])
+                              : "NULL"
+                          }
+                        >
                           {row[col] !== null && row[col] !== undefined
                             ? String(row[col])
                             : "NULL"}
