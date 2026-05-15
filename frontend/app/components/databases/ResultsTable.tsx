@@ -33,6 +33,7 @@ interface ResultsTableProps {
   jsonPayload: string;
   setJsonPayload: React.Dispatch<React.SetStateAction<string>>;
   jsonSaveTrigger: number;
+  jsonCancelTrigger: number;
 }
 
 const DEFAULT_COLUMN_WIDTH = 140;
@@ -97,8 +98,14 @@ export const ResultsTable = ({
   setJsonEditOpen,
   jsonPayload,
   setJsonPayload,
+  jsonSaveTrigger,
+  jsonCancelTrigger,
 }: ResultsTableProps) => {
   const [editingCell, setEditingCell] = useState<{
+    rowIdx: number;
+    col: string;
+  } | null>(null);
+  const [editingJsonCell, setEditingJsonCell] = useState<{
     rowIdx: number;
     col: string;
   } | null>(null);
@@ -195,6 +202,72 @@ export const ResultsTable = ({
     };
   }, [onColumnWidthsChange, resizingColumn]);
 
+  const handleJsonSave = async (rowIdx: number, col: string) => {
+    if (!table) {
+      toast.error("Table information required");
+      return;
+    }
+
+    const primaryKeyValue = localData[rowIdx][primaryKey];
+    if (primaryKeyValue === undefined) {
+      toast.error(`Primary key '${primaryKey}' is missing in result row`);
+      return;
+    }
+
+    console.log(
+      `index (i think) \n collumn: ${editingJsonCell?.col} \n row: ${editingJsonCell?.rowIdx}`,
+    ); //the kept collumn id (starts from 0)
+    console.log(`primaryKeyValue ${localData[rowIdx][primaryKey]}`); //the displayed collumn id (starts from 1)
+
+    setIsSaving(true);
+
+    try {
+      const valueToSave = jsonPayload ? jsonPayload : null;
+
+      await editRecord({
+        table,
+        values: {
+          [col]: valueToSave,
+        },
+        where: {
+          [primaryKey]: primaryKeyValue,
+        },
+      });
+
+      const updatedData = [...localData];
+      updatedData[rowIdx] = {
+        ...updatedData[rowIdx],
+        [col]: valueToSave,
+      };
+
+      setLocalData(updatedData);
+      onDataUpdate?.(updatedData);
+
+      setEditingCell(null);
+      toast.success("Record updated successfully");
+    } catch (error) {
+      toast.error("Failed to update record");
+      console.error(error);
+    } finally {
+      setIsSaving(false);
+      setEditingJsonCell(null);
+      setJsonEditOpen(false);
+      setJsonPayload("");
+    }
+  };
+
+  useEffect(() => {
+    if (!jsonSaveTrigger) return;
+    if (!jsonPayload) return;
+    if (editingJsonCell?.rowIdx == null || editingJsonCell?.col == null) return;
+
+    void handleJsonSave(editingJsonCell?.rowIdx, editingJsonCell?.col);
+  }, [jsonSaveTrigger]);
+
+  useEffect(() => {
+    handleCancel()
+  }, [jsonCancelTrigger]);
+
   if (isLoading) {
     return (
       <div className="text-sm text-muted-foreground p-4">
@@ -228,7 +301,7 @@ export const ResultsTable = ({
           ? JSON.stringify(JSON.parse(value), null, 2)
           : JSON.stringify(value, null, 2),
       );
-
+      setEditingJsonCell({rowIdx, col});
       setJsonEditOpen(true);
       return;
     }
@@ -236,8 +309,6 @@ export const ResultsTable = ({
     setEditingCell({rowIdx, col});
     setEditValue(String(value ?? ""));
   };
-
-  
 
   const handleSave = async (rowIdx: number, col: string) => {
     if (!table) {
@@ -277,6 +348,10 @@ export const ResultsTable = ({
   const handleCancel = () => {
     setEditingCell(null);
     setEditValue("");
+
+    setEditingJsonCell(null);
+    setJsonPayload("");
+    setJsonEditOpen(false);
   };
 
   const handleColumnResizeStart = (
@@ -347,12 +422,15 @@ export const ResultsTable = ({
                 {columns.map((col) => {
                   const isEditing =
                     editingCell?.rowIdx === idx && editingCell.col === col;
+                  const isJsonEditing =
+                    editingJsonCell?.rowIdx === idx &&
+                    editingJsonCell.col === col;
                   return (
                     <td
                       key={`${idx}-${col}`}
                       className="px-3 py-2 font-mono overflow-hidden"
                       onClick={() => {
-                        if (!isEditing) {
+                        if (!isEditing && !isJsonEditing) {
                           handleCellClick(idx, col);
                         }
                       }}

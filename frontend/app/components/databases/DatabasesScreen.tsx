@@ -190,13 +190,15 @@ type Props = {
   jsonPayload: string;
   setJsonPayload: React.Dispatch<React.SetStateAction<string>>;
   jsonSaveTrigger: number;
+  jsonCancelTrigger: number;
 };
 export const DatabasesScreen = ({
   jsonEditOpen,
   setJsonEditOpen,
   jsonPayload,
   setJsonPayload,
-  jsonSaveTrigger
+  jsonSaveTrigger,
+  jsonCancelTrigger
 }: Props) => {
   const [connections, setConnections] = useState<DatabaseConnectionProfile[]>(
     [],
@@ -952,6 +954,7 @@ export const DatabasesScreen = ({
                             jsonPayload={jsonPayload}
                             setJsonPayload={setJsonPayload}
                             jsonSaveTrigger={jsonSaveTrigger}
+                            jsonCancelTrigger={jsonCancelTrigger}
                           />
                         </div>
                       </>

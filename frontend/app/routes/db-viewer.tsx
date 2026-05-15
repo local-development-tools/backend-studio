@@ -10,26 +10,27 @@ export function meta({}: Route.MetaArgs) {
 }
 
 export default function DbViewer() {
-  const [jsonEditOpen, setJsonEditOpen] = useState(true);
+  const [jsonEditOpen, setJsonEditOpen] = useState(false);
 
-  const [jsonPayload, setJsonPayload] = useState(
-    JSON.stringify({test: true}, null, 2),
-  );
+  const [jsonPayload, setJsonPayload] = useState(JSON.stringify({}, null, 2));
 
   const [jsonSaveTrigger, setJsonSaveTrigger] = useState(0);
+  const [jsonCancelTrigger, setJsonCancelTrigger] = useState(0);
 
   const handleSave = () => {
     try {
       const parsed = JSON.parse(jsonPayload);
 
-      // format JSON nicely on save
       const formatted = JSON.stringify(parsed, null, 2);
+
       setJsonPayload(formatted);
 
       console.log("VALID JSON:", parsed);
       console.log("FORMATTED JSON:", formatted);
 
-      setJsonEditOpen(false); // close after save (optional)
+      setJsonSaveTrigger((prev) => prev + 1);
+
+      setJsonEditOpen(false);
     } catch (e) {
       console.log("Invalid JSON, not saving");
     }
@@ -43,6 +44,7 @@ export default function DbViewer() {
         jsonPayload={jsonPayload}
         setJsonPayload={setJsonPayload}
         jsonSaveTrigger={jsonSaveTrigger}
+        jsonCancelTrigger={jsonCancelTrigger}
       />
 
       {jsonEditOpen && (
@@ -64,12 +66,11 @@ export default function DbViewer() {
 
                   const newValue =
                     jsonPayload.substring(0, start) +
-                    "  " + // 2 spaces for indentation
+                    "  " +
                     jsonPayload.substring(end);
 
                   setJsonPayload(newValue);
 
-                  // restore cursor position after insert
                   setTimeout(() => {
                     textarea.selectionStart = textarea.selectionEnd = start + 2;
                   }, 0);
@@ -80,13 +81,13 @@ export default function DbViewer() {
             <div className="mt-3 flex justify-end gap-2">
               <button
                 className="px-3 py-1 border rounded"
-                onClick={() => setJsonEditOpen(false)}
+                onClick={() => {setJsonCancelTrigger((prev) => prev + 1)}}
               >
                 Cancel
               </button>
 
               <button
-                className="px-3 py-1 border rounded bg-black text-white"
+                className="px-3 py-1 border rounded bg-primary text-white"
                 onClick={handleSave}
               >
                 Save
