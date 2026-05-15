@@ -106,8 +106,15 @@ export const GrpcRequestEditor = ({ request, onChange, onSend, envSelector, envV
   const selectedReflectedMethod =
     selectedReflectedService?.methods.find((m) => m.name === request.method) ?? null;
 
+  const handleShortcut = (event: React.KeyboardEvent<HTMLDivElement>) => {
+    if ((event.ctrlKey || event.metaKey) && !event.altKey && !event.shiftKey && event.key === 'Enter') {
+      event.preventDefault();
+      onSend();
+    }
+  };
+
   return (
-    <div className="flex flex-col h-full">
+    <div className="flex flex-col h-full" onKeyDownCapture={handleShortcut}>
       {/* Server address bar */}
       <div className="flex items-center gap-0 border-2 border-orange-500/40 rounded-lg overflow-hidden bg-background mb-3">
         <div className="flex items-center gap-1.5 px-3 h-9 bg-muted/50 border-r border-border shrink-0">
@@ -133,7 +140,7 @@ export const GrpcRequestEditor = ({ request, onChange, onSend, envSelector, envV
           )}
           Reflect
         </Button>
-        <Button onClick={onSend} className="h-9 rounded-none px-5 gap-2 font-semibold shrink-0">
+        <Button onClick={onSend} className="h-9 rounded-none px-5 gap-2 font-semibold shrink-0" title="Invoke request (⌘/Ctrl+Enter)">
           <Send className="h-3.5 w-3.5" />
           Invoke
         </Button>
