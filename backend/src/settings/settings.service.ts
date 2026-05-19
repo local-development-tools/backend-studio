@@ -59,10 +59,7 @@ export class SettingsService {
       connections[existingIndex] = {
         ...connections[existingIndex],
         ...normalized,
-        password:
-          normalized.password !== undefined
-            ? normalized.password
-            : connections[existingIndex].password,
+        password: normalized.password !== undefined ? normalized.password : connections[existingIndex].password,
       };
     }
 
@@ -335,13 +332,16 @@ export class SettingsService {
     };
   }
 
-  private applyConnectionToEnv(env: EnvMap, connection: {
-    host: string;
-    port: number;
-    username: string;
-    password?: string;
-    database: string;
-  }) {
+  private applyConnectionToEnv(
+    env: EnvMap,
+    connection: {
+      host: string;
+      port: number;
+      username: string;
+      password?: string;
+      database: string;
+    },
+  ) {
     env.DB_HOST = connection.host;
     env.DB_PORT = String(connection.port);
     env.DB_USER = connection.username;

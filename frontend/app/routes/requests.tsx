@@ -72,6 +72,7 @@ import {
   handleDeleteCollection,
   handleExportCollection,
   handleImportCollection,
+  handleStoreCollection,
   handleUpdateCollection,
 } from "~/lib/api/requests/treeActions/collectionsHandler";
 import {
@@ -102,6 +103,7 @@ export type TreeAction =
   | {type: "updateCollection"; id: string}
   | {type: "importCollection"}
   | {type: "exportCollection"; id: string}
+  | {type: "storeCollection"; id: string}
   | {type: "createFolder"; parentId: string; location: "collection" | "folder"} //name given via modal
   | {type: "deleteFolder"; id: string}
   | {type: "updateFolder"; id: string}
@@ -569,6 +571,9 @@ export default function Requests() {
 
       case "importCollection":
         handleImportCollection({openModal, setRefreshKey});
+        break;
+      case "storeCollection":
+        handleStoreCollection({ id: action.id, openModal });
         break;
 
       case "exportCollection":

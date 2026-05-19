@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { CreateCollectionDto } from './dto/create-collection.dto';
 import { UpdateCollectionDto } from './dto/update-collection.dto';
 import { Collection } from './entities/collection.entity';
@@ -8,12 +8,21 @@ import * as path from 'path';
 import { randomUUID } from 'crypto';
 import { CollectionImportService } from './collection-import.service';
 import { CollectionExportService } from './collection-export.service';
+import AdmZip from 'adm-zip';
 import { EnvironmentsService } from './environments.service';
 import { assertFileExists } from './fs.utils';
+import Docker from 'dockerode';
+import { StoreCollectionDto } from './dto/store-collection.dto';
+import tar from 'tar-fs';
+
+const docker = new Docker();
 
 @Injectable()
 export class CollectionsService {
   private readonly collectionsDir = path.join(process.cwd(), 'data', 'collections');
+  private readonly containersDir = path.join(process.cwd(), 'data', 'containers');
+  private readonly hostExportRoot = '/host-exports';
+  private readonly logger = new Logger(CollectionsService.name);
 
   constructor(
     private readonly collectionImportService: CollectionImportService,
@@ -98,7 +107,7 @@ export class CollectionsService {
   }
 
   importCollection(input: {
-    files: Express.Multer.File[];
+    files: Array<{ fieldname: string; originalname: string; buffer: Buffer }>;
     paths?: string | string[];
     collectionName?: string;
   }): Promise<ImportedCollectionTree> {
@@ -112,6 +121,34 @@ export class CollectionsService {
   async exportCollectionZip(id: string): Promise<{ fileName: string; buffer: Buffer }> {
     const collection = await this._getCollectionById(id);
     return this.collectionExportService.exportCollectionZip(collection);
+  }
+
+  async storeCollection(
+    id: string,
+    storeCollectionDto: StoreCollectionDto,
+  ): Promise<{ hostPath?: string; containerPath?: string }> {
+    const collection = await this._getCollectionById(id);
+    const sourcePath = await this.prepareCollectionSourceMirror(collection);
+    const destination: { hostPath?: string; containerPath?: string } = {};
+    const operations: Promise<void>[] = [];
+
+    if (storeCollectionDto.containerId?.trim()) {
+      const containerId = storeCollectionDto.containerId.trim();
+      const containerTarget = storeCollectionDto.containerPath?.trim() || '/app/data/collections';
+      operations.push(this.copyDirectoryToContainer(sourcePath, containerId, containerTarget));
+      destination.containerPath = `${containerId}:${path.posix.join(containerTarget, collection.id)}`;
+    }
+
+    if (!operations.length) {
+      throw new BadRequestException('Provide a container target');
+    }
+
+    await Promise.all(operations);
+    this.logger.log(
+      `Stored collection "${collection.id}" to ${destination.containerPath ? `container:${destination.containerPath}` : 'container:unknown'}`,
+    );
+
+    return destination;
   }
 
   async updateCollection(id: string, updateCollectionDto: UpdateCollectionDto): Promise<Collection> {
@@ -169,5 +206,43 @@ export class CollectionsService {
       }
       throw error;
     }
+  }
+
+  private async copyDirectory(sourcePath: string, destinationPath: string): Promise<void> {
+    await fs.rm(destinationPath, { recursive: true, force: true });
+    await fs.mkdir(path.dirname(destinationPath), { recursive: true });
+    await fs.cp(sourcePath, destinationPath, { recursive: true });
+  }
+
+  private async prepareCollectionSourceMirror(collection: Collection): Promise<string> {
+    const mirrorPath = path.join(this.containersDir, collection.id);
+
+    await fs.rm(mirrorPath, { recursive: true, force: true });
+    await fs.mkdir(mirrorPath, { recursive: true });
+
+    const zipResult = await this.collectionExportService.exportCollectionZip(collection);
+    const zip = new AdmZip(zipResult.buffer);
+    zip.extractAllTo(mirrorPath, true);
+
+    return mirrorPath;
+  }
+
+  private async copyDirectoryToContainer(
+    sourcePath: string,
+    containerId: string,
+    containerTargetDir: string,
+  ): Promise<void> {
+    try {
+      const container = docker.getContainer(containerId);
+      await container.putArchive(tar.pack(sourcePath), { path: containerTargetDir });
+    } catch (error) {
+      throw new BadRequestException(
+        `Failed to copy collection to container "${containerId}": ${(error as Error).message}`,
+      );
+    }
+  }
+
+  private normalizeHostSubpath(hostDirectory: string): string {
+    return hostDirectory.trim().replace(/^[\\/]+/, '');
   }
 }
