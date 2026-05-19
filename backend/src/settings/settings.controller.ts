@@ -2,10 +2,7 @@ import { Controller, Post, Body, Get, Delete, Patch, Param } from '@nestjs/commo
 import { SettingsService } from './settings.service';
 import { DatabaseSettingsDto } from './dto/database-settings.dto';
 import { AiSettingsDto } from './dto/ai-settings.dto';
-import {
-  ActiveDatabaseConnectionDto,
-  DatabaseConnectionUpsertDto,
-} from './dto/database-connection.dto';
+import { ActiveDatabaseConnectionDto, DatabaseConnectionUpsertDto } from './dto/database-connection.dto';
 class MicroservicesRootDto {
   path!: string;
 }

@@ -128,8 +128,7 @@ export class CollectionsService {
     storeCollectionDto: StoreCollectionDto,
   ): Promise<{ hostPath?: string; containerPath?: string }> {
     const collection = await this._getCollectionById(id);
-    const collectionPath = path.join(this.collectionsDir, id);
-    const sourcePath = await this.prepareCollectionSourceMirror(collection, collectionPath);
+    const sourcePath = await this.prepareCollectionSourceMirror(collection);
     const destination: { hostPath?: string; containerPath?: string } = {};
     const operations: Promise<void>[] = [];
 
@@ -215,7 +214,7 @@ export class CollectionsService {
     await fs.cp(sourcePath, destinationPath, { recursive: true });
   }
 
-  private async prepareCollectionSourceMirror(collection: Collection, collectionPath: string): Promise<string> {
+  private async prepareCollectionSourceMirror(collection: Collection): Promise<string> {
     const mirrorPath = path.join(this.containersDir, collection.id);
 
     await fs.rm(mirrorPath, { recursive: true, force: true });
@@ -246,5 +245,4 @@ export class CollectionsService {
   private normalizeHostSubpath(hostDirectory: string): string {
     return hostDirectory.trim().replace(/^[\\/]+/, '');
   }
-
 }
