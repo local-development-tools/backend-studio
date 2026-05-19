@@ -38,8 +38,15 @@ export const HttpRequestEditor = ({ request, onChange, onSend, envSelector }: Ht
   const pathParamsCount = request.pathParams.filter((item) => item.key.trim()).length;
   const queryParamsCount = request.queryParams.filter((item) => item.key.trim()).length;
 
+  const handleShortcut = (event: React.KeyboardEvent<HTMLDivElement>) => {
+    if ((event.ctrlKey || event.metaKey) && !event.altKey && !event.shiftKey && event.key === 'Enter') {
+      event.preventDefault();
+      onSend();
+    }
+  };
+
   return (
-    <div className="flex flex-col h-full">
+    <div className="flex flex-col h-full" onKeyDownCapture={handleShortcut}>
       {/* URL bar - Postman style */}
       <div className={`flex items-center gap-0 border-2 rounded-lg overflow-hidden bg-background mb-3 ${METHOD_BORDER[request.method]}`}>
         <Select value={request.method} onValueChange={(v) => onChange({ ...request, method: v as HttpMethod })}>
@@ -67,7 +74,7 @@ export const HttpRequestEditor = ({ request, onChange, onSend, envSelector }: Ht
           placeholder="Enter request URL"
           className="flex-1 h-9 border-none shadow-none focus-visible:ring-0 text-sm font-mono"
         />
-        <Button onClick={onSend} className="h-9 rounded-none px-5 gap-2 font-semibold">
+        <Button onClick={onSend} className="h-9 rounded-none px-5 gap-2 font-semibold" title="Send request (⌘/Ctrl+Enter)">
           <Send className="h-3.5 w-3.5" />
           Send
         </Button>

@@ -1,5 +1,14 @@
 // handleCreateCollection.ts
-import { createCollection, deleteCollection, exportCollection, getCollectionById, importCollection, updateCollection } from "../fileStructure/collections";
+import {
+  createCollection,
+  deleteCollection,
+  exportCollection,
+  getCollectionById,
+  importCollection,
+  storeCollection,
+  updateCollection,
+} from "../fileStructure/collections";
+import { getContainers } from "~/lib/api/containers";
 
 interface CreateCollectionCtx {
   openModal: (
@@ -147,4 +156,91 @@ export const handleExportCollection = ({ id }: ExportCollectionCtx) => {
   exportCollection(id).catch((err) =>
     console.error("Failed to export collection:", err)
   );
+};
+
+interface StoreCollectionCtx {
+  id: string;
+  openModal: (
+    title: string,
+    fields: {
+      name: string;
+      label: string;
+      placeholder?: string;
+      defaultValue?: string;
+      description?: string;
+      required: boolean;
+      type?: string;
+      options?: Array<string | {label: string; value: string}>;
+    }[],
+    onSubmit: (values: Record<string, unknown>) => void
+  ) => void;
+}
+
+export const handleStoreCollection = ({ id, openModal }: StoreCollectionCtx) => {
+  getContainers()
+    .then((containers) => {
+      openModal(
+        "Store Collection",
+        [
+          {
+            name: "containerId",
+            label: "Destination Container",
+            type: "select",
+            description: "Choose the container that should receive the copied collection.",
+            options: containers.map((container) => {
+              const primaryName = container.names[0]?.replace(/^\//, "") ?? container.id;
+              return {
+                label: `${primaryName} (${container.id.slice(0, 12)})`,
+                value: container.id,
+              };
+            }),
+            required: false,
+          },
+          {
+            name: "containerPath",
+            label: "Path Inside Container",
+            placeholder: "/app/data/collections",
+            defaultValue: "/app/data/collections",
+            description: "The folder path inside the selected container where the collection will be copied. Make sure this path exists in the container before submitting.",
+            required: false,
+          },
+        ],
+        (values) => {
+          storeCollection(id, {
+            containerId: typeof values.containerId === "string" ? values.containerId : undefined,
+            containerPath: typeof values.containerPath === "string" ? values.containerPath : undefined,
+          }).catch((err) => console.error("Failed to store collection:", err));
+        },
+      );
+    })
+    .catch((err) => {
+      console.error("Failed to load containers for store action:", err);
+      openModal(
+        "Store Collection",
+        [
+          {
+            name: "containerId",
+            label: "Destination Container",
+            type: "select",
+            description: "Choose the container that should receive the copied collection.",
+            options: [],
+            required: false,
+          },
+          {
+            name: "containerPath",
+            label: "Path Inside Container",
+            placeholder: "/app/data/collections",
+            defaultValue: "/app/data/collections",
+            description: "The folder path inside the selected container where the collection will be copied.",
+            required: false,
+          },
+        ],
+        (values) => {
+          storeCollection(id, {
+            containerId: typeof values.containerId === "string" ? values.containerId : undefined,
+            containerPath: typeof values.containerPath === "string" ? values.containerPath : undefined,
+          }).catch((submitErr) => console.error("Failed to store collection:", submitErr));
+        },
+      );
+    });
 };

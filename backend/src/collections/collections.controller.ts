@@ -4,6 +4,7 @@ import type { Response } from 'express';
 import { CollectionsService } from './collections.service';
 import { CreateCollectionDto } from './dto/create-collection.dto';
 import { UpdateCollectionDto } from './dto/update-collection.dto';
+import { StoreCollectionDto } from './dto/store-collection.dto';
 import { Collection } from './entities/collection.entity';
 import { ImportedCollectionTree } from './entities/import-result.entity';
 
@@ -24,7 +25,7 @@ export class CollectionsController {
   @Post('import')
   @UseInterceptors(AnyFilesInterceptor())
   importCollection(
-    @UploadedFiles() files: Express.Multer.File[],
+    @UploadedFiles() files: Array<{ fieldname: string; originalname: string; buffer: Buffer }>,
     @Body() body: { paths?: string | string[]; collectionName?: string },
   ): Promise<ImportedCollectionTree> {
     return this.collectionsService.importCollection({
@@ -45,6 +46,11 @@ export class CollectionsController {
     res.setHeader('Content-Type', 'application/zip');
     res.setHeader('Content-Disposition', `attachment; filename="${zip.fileName}"`);
     res.send(zip.buffer);
+  }
+
+  @Post(':id/store')
+  storeCollection(@Param('id') id: string, @Body() storeCollectionDto: StoreCollectionDto) {
+    return this.collectionsService.storeCollection(id, storeCollectionDto);
   }
 
   @Patch(':id')

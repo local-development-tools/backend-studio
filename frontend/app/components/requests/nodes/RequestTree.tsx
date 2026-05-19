@@ -248,6 +248,12 @@ export function RequestTreeNode({
           </DropdownMenuItem>
 
           <DropdownMenuItem
+            onClick={() => onAction?.({type: "storeCollection", id: `${id}`})}
+          >
+            Store Collection
+          </DropdownMenuItem>
+
+          <DropdownMenuItem
             variant="destructive"
             onClick={() =>
               onAction?.({

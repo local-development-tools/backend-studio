@@ -18,6 +18,17 @@ export interface UpdateCollectionDto {
   description?: string;
 }
 
+export interface StoreCollectionDto {
+  hostDirectory?: string;
+  containerId?: string;
+  containerPath?: string;
+}
+
+export interface StoreCollectionResponse {
+  hostPath?: string;
+  containerPath?: string;
+}
+
 // --- Import types ---
 export interface ImportCollectionDto {
   file: File;
@@ -117,4 +128,21 @@ export function exportCollection(id: string): Promise<void> {
       window.URL.revokeObjectURL(url);
     }
   );
+}
+
+export function storeCollection(
+  id: string,
+  data: StoreCollectionDto,
+): Promise<StoreCollectionResponse> {
+  return fetch(`http://localhost:3000/collections/${id}/store`, {
+    method: "POST",
+    headers: {"Content-Type": "application/json"},
+    body: JSON.stringify(data),
+  }).then((res) => {
+    if (!res.ok) {
+      throw new Error(`Failed to store collection with id ${id}`);
+    }
+
+    return res.json() as Promise<StoreCollectionResponse>;
+  });
 }

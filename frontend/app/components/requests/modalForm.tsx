@@ -16,7 +16,8 @@ export interface InputField {
   placeholder?: string;
   type?: string;
   defaultValue?: string;
-  options?: string[];
+  description?: string;
+  options?: Array<string | {label: string; value: string}>;
   required?: boolean;
   accept?: string; // added
 }
@@ -71,7 +72,7 @@ export const ModalForm = ({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-      <div className="bg-background p-4 rounded-md w-80 space-y-4 shadow-lg">
+      <div className="bg-background p-5 rounded-md w-[28rem] max-w-[92vw] space-y-4 shadow-lg">
         <h2 className="text-lg font-semibold">{title}</h2>
 
         {fields.map((field) => (
@@ -83,6 +84,12 @@ export const ModalForm = ({
               )}
             </label>
 
+            {field.description && (
+              <p className="text-[11px] leading-snug text-muted-foreground">
+                {field.description}
+              </p>
+            )}
+
             {field.type === "select" && field.options ? (
               <select
                 value={values[field.name] as string}
@@ -91,9 +98,13 @@ export const ModalForm = ({
                 }
                 className="w-full px-3 py-2 text-sm border border-gray-300 rounded-md bg-background text-foreground"
               >
+                <option value="">Select...</option>
                 {field.options.map((option) => (
-                  <option key={option} value={option}>
-                    {option}
+                  <option
+                    key={typeof option === "string" ? option : option.value}
+                    value={typeof option === "string" ? option : option.value}
+                  >
+                    {typeof option === "string" ? option : option.label}
                   </option>
                 ))}
               </select>
