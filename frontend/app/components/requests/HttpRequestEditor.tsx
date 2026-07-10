@@ -15,7 +15,7 @@ import { Input } from '../ui/input';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../ui/tabs';
 import { Badge } from '../ui/badge';
 import { METHOD_COLOR_BASE } from '~/lib/api/requests/methodColors';
-import { syncPathParamsWithUrl } from '~/lib/api/requests/utils';
+import { buildUrlWithQuery, syncPathParamsWithUrl } from '~/lib/api/requests/utils';
 
 
 interface HttpRequestEditorProps {
@@ -110,7 +110,13 @@ export const HttpRequestEditor = ({ request, onChange, onSend, envSelector }: Ht
               <div className="mb-1 px-1 text-[10px] uppercase tracking-wide text-muted-foreground">Query params</div>
               <KeyValueEditor
                 items={request.queryParams}
-                onChange={(queryParams) => onChange({ ...request, queryParams })}
+                onChange={(queryParams) =>
+                  onChange({
+                    ...request,
+                    queryParams,
+                    url: buildUrlWithQuery(request.url.split('?')[0], queryParams),
+                  })
+                }
               />
             </div>
           </div>

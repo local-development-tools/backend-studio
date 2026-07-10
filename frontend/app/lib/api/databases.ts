@@ -17,6 +17,7 @@ export interface TableSchemaResponse {
 
 export interface EditRecordDto {
   table: string;
+  schema?: string;
   values: Record<string, unknown>;
   where: Record<string, unknown>;
   returning?: string[];
