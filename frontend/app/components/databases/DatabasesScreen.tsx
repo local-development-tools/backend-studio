@@ -45,25 +45,36 @@ const MIN_FONT_SCALE = 85;
 const MAX_FONT_SCALE = 140;
 const FONT_SCALE_STEP = 5;
 
-const getBaseSqlWithoutOrderBy = (sql: string) =>
-  sql.replace(/\s+order\s+by\s+[\s\S]*$/i, "").trimEnd();
+const splitSqlForSort = (sql: string) => {
+  const withoutSemicolon = sql.trim().replace(/;\s*$/, "");
+  const limitMatch = withoutSemicolon.match(
+    /(\s+limit\s+\d+(?:\s+offset\s+\d+)?\s*)$/i,
+  );
+  const trailingClause = limitMatch?.[1]?.trim() ?? "";
+  const withoutLimit = limitMatch
+    ? withoutSemicolon.slice(0, withoutSemicolon.length - limitMatch[1].length).trimEnd()
+    : withoutSemicolon;
+  const orderByIndex = withoutLimit.toLowerCase().lastIndexOf(" order by ");
+
+  return {
+    baseSql:
+      orderByIndex === -1
+        ? withoutLimit
+        : withoutLimit.slice(0, orderByIndex).trimEnd(),
+    trailingClause,
+  };
+};
 
 const buildTableSqlWithSort = (
-  baseSql: string,
+  currentSql: string,
   column: string,
   direction: "asc" | "desc",
 ) => {
-  const cleanBaseSql = getBaseSqlWithoutOrderBy(baseSql).replace(/;\s*$/g, "");
+  const {baseSql, trailingClause} = splitSqlForSort(currentSql);
   const quotedColumn = `"${column.replace(/"/g, '""')}"`;
-  const limitMatch = cleanBaseSql.match(/\s+limit\s+\d+(?:\s+offset\s+\d+)?\s*$/i);
+  const orderByClause = `ORDER BY ${quotedColumn} ${direction.toUpperCase()}`;
 
-  if (limitMatch) {
-    const limitClause = limitMatch[0].trim();
-    const withoutLimit = cleanBaseSql.slice(0, cleanBaseSql.length - limitClause.length).trimEnd();
-    return `${withoutLimit} ORDER BY ${quotedColumn} ${direction.toUpperCase()} ${limitClause};`;
-  }
-
-  return `${cleanBaseSql} ORDER BY ${quotedColumn} ${direction.toUpperCase()};`;
+  return `${baseSql} ${orderByClause}${trailingClause ? ` ${trailingClause}` : ""};`;
 };
 
 interface TableDisplayPreference {
