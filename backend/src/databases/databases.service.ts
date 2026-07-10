@@ -121,10 +121,12 @@ export class DatabasesService implements OnModuleInit {
 
   async editRecord(editRecordDto: EditRecordDto): Promise<any> {
     const table = editRecordDto?.table?.trim();
+    const schema = this.normalizePgSchema(editRecordDto?.schema);
     if (!table) {
       throw new BadRequestException('Field "table" is required');
     }
     this.ensureSafeIdentifier(table, 'table');
+    this.ensureSafeIdentifier(schema, 'schema');
 
     const values = this.assertRecordMap(editRecordDto?.values, 'values');
     const where = this.assertRecordMap(editRecordDto?.where, 'where');
@@ -167,7 +169,7 @@ export class DatabasesService implements OnModuleInit {
       ? ` RETURNING ${returning.map((column) => this.quoteIdentifier(column)).join(', ')}`
       : '';
 
-    const sql = `UPDATE ${this.quoteIdentifier(table)} SET ${setClause} WHERE ${whereClause}${returningClause};`;
+    const sql = `UPDATE ${this.quoteIdentifier(schema)}.${this.quoteIdentifier(table)} SET ${setClause} WHERE ${whereClause}${returningClause};`;
 
     try {
       const result = await this.query(sql, params as any[]);

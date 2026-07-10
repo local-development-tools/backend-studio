@@ -942,6 +942,7 @@ export const DatabasesScreen = ({
                             rowCount={queryResults.rowCount}
                             isLoading={isExecuting}
                             table={selectedTable}
+                            schema={selectedSchema}
                             primaryKey={primaryKey}
                             columnEnumValues={columnEnumValues}
                             onDataUpdate={handleDataUpdate}

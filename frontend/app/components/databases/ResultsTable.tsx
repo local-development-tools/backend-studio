@@ -22,6 +22,7 @@ interface ResultsTableProps {
   rowCount?: number;
   isLoading?: boolean;
   table?: string;
+  schema?: string;
   primaryKey?: string;
   columnEnumValues?: Record<string, string[]>;
   onDataUpdate?: (updatedData: Record<string, any>[]) => void;
@@ -87,6 +88,7 @@ export const ResultsTable = ({
   rowCount,
   isLoading = false,
   table,
+  schema = "public",
   primaryKey = "id",
   columnEnumValues = {},
   onDataUpdate,
@@ -226,6 +228,7 @@ export const ResultsTable = ({
 
       await editRecord({
         table,
+        schema,
         values: {
           [col]: valueToSave,
         },
@@ -326,6 +329,7 @@ export const ResultsTable = ({
     try {
       await editRecord({
         table,
+        schema,
         values: {[col]: editValue || null},
         where: {[primaryKey]: primaryKeyValue},
       });
