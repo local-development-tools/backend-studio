@@ -1,4 +1,5 @@
 import { API_BASE_URL } from '~/lib/api/config';
+import type { CloneSslMode } from '~/lib/api/databases';
 
 export type AiProvider = 'openai' | 'anthropic' | 'lmstudio';
 
@@ -26,6 +27,7 @@ export interface DatabaseConnectionResponse {
   port: number;
   username: string;
   database: string;
+  sslmode?: CloneSslMode;
   passwordSet: boolean;
 }
 
@@ -36,6 +38,7 @@ export interface DatabaseConnectionUpsertPayload {
   port: number;
   username: string;
   database: string;
+  sslmode?: CloneSslMode;
   password?: string;
 }
 

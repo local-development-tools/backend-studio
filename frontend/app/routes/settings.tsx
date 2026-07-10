@@ -27,6 +27,8 @@ import {
   type DatabaseConnectionResponse,
 } from "~/lib/api/settings";
 import {
+  CLONE_SSL_MODE_OPTIONS,
+  type CloneSslMode,
   type DatabaseConnectionProfile,
   getConnectionDisplayName,
 } from "~/lib/db-connections";
@@ -48,6 +50,7 @@ export default function Settings() {
   const [dbName, setDbName] = useState("");
   const [dbUser, setDbUser] = useState("");
   const [dbPassword, setDbPassword] = useState("");
+  const [dbSslMode, setDbSslMode] = useState<CloneSslMode>("prefer");
   const [dbConnectionName, setDbConnectionName] = useState("Default connection");
   const [dbConnections, setDbConnections] = useState<DatabaseConnectionProfile[]>([]);
   const [activeDbConnectionId, setActiveDbConnectionIdState] = useState<string | null>(null);
@@ -81,6 +84,7 @@ export default function Settings() {
     port: connection.port,
     username: connection.username,
     database: connection.database,
+    sslmode: connection.sslmode,
     passwordSet: connection.passwordSet,
   });
 
@@ -91,6 +95,7 @@ export default function Settings() {
     setDbName(connection.database);
     setDbUser(connection.username);
     setDbPassword(connection.password ?? "");
+    setDbSslMode(connection.sslmode ?? "prefer");
     setDbPasswordSet(Boolean(connection.passwordSet ?? connection.password));
   };
 
@@ -128,6 +133,7 @@ export default function Settings() {
         setDbName(db.database ?? "");
         setDbUser(db.username ?? "");
         setDbPassword("");
+        setDbSslMode("prefer");
         setDbConnectionName("Default connection");
       })
       .catch(() => {});
@@ -181,6 +187,7 @@ export default function Settings() {
       port: parsedPort,
       database: dbName.trim(),
       username: dbUser.trim(),
+      sslmode: dbSslMode,
       password: dbPassword.trim() ? dbPassword : activeConnection.password,
       passwordSet: dbPassword.trim() ? true : activeConnection.passwordSet,
     };
@@ -194,6 +201,7 @@ export default function Settings() {
         port: nextConnection.port,
         username: nextConnection.username,
         database: nextConnection.database,
+        sslmode: nextConnection.sslmode,
         ...(dbPassword.trim() ? { password: dbPassword } : {}),
       });
 
@@ -208,6 +216,7 @@ export default function Settings() {
       persistConnections(activatedConnections);
 
       setDbPasswordSet(Boolean(nextConnection.passwordSet ?? nextConnection.password));
+      setDbSslMode(nextConnection.sslmode ?? "prefer");
       setDbConnected(activated.settings.connected);
       setDbConnectionName(nextConnection.name);
       setDbPassword(nextConnection.password ?? "");
@@ -298,6 +307,7 @@ export default function Settings() {
       username: "postgres",
       password: "",
       passwordSet: false,
+        sslmode: "prefer",
     };
 
     const nextConnections = [...dbConnections, nextConnection];
@@ -335,6 +345,7 @@ export default function Settings() {
           setDbName("");
           setDbUser("");
           setDbPassword("");
+          setDbSslMode("prefer");
           setDbConnected(false);
           setDbPasswordSet(false);
           return;
@@ -476,6 +487,21 @@ export default function Settings() {
                   onChange={(e) => setDbPassword(e.target.value)}
                 />
               </div>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="sslmode">SSL Mode</Label>
+              <Select value={dbSslMode} onValueChange={(value) => setDbSslMode(value as CloneSslMode)}>
+                <SelectTrigger id="sslmode">
+                  <SelectValue placeholder="Select SSL mode" />
+                </SelectTrigger>
+                <SelectContent>
+                  {CLONE_SSL_MODE_OPTIONS.map((mode) => (
+                    <SelectItem key={mode} value={mode}>
+                      {mode}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
             <div className="flex items-center justify-between text-xs text-muted-foreground">
               <span>Status: {dbConnected ? "connected" : "not connected"}</span>

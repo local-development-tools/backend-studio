@@ -9,7 +9,7 @@ import { DatabaseConnectionUpsertDto } from './dto/database-connection.dto';
 
 type EnvMap = Record<string, string>;
 
-const DB_KEYS = ['DB_HOST', 'DB_PORT', 'DB_USER', 'DB_PASSWORD', 'DB_NAME'] as const;
+const DB_KEYS = ['DB_HOST', 'DB_PORT', 'DB_USER', 'DB_PASSWORD', 'DB_NAME', 'DB_SSLMODE'] as const;
 const DB_CONNECTIONS_KEY = 'DB_CONNECTIONS_B64';
 const DB_ACTIVE_CONNECTION_ID_KEY = 'DB_ACTIVE_CONNECTION_ID';
 const AI_KEYS = [
@@ -38,6 +38,7 @@ export class SettingsService {
       port: connection.port,
       username: connection.username,
       database: connection.database,
+      sslmode: connection.sslmode,
       passwordSet: connection.password !== undefined,
     }));
 
@@ -318,6 +319,7 @@ export class SettingsService {
     const username = env.DB_USER;
     const password = env.DB_PASSWORD;
     const database = env.DB_NAME;
+    const sslmode = env.DB_SSLMODE as PostgresConnectionDto['sslmode'] | undefined;
 
     if (!host || !port || !username || !database || password === undefined) {
       return null;
@@ -329,6 +331,7 @@ export class SettingsService {
       username,
       password,
       database,
+      sslmode,
     };
   }
 
@@ -340,6 +343,7 @@ export class SettingsService {
       username: string;
       password?: string;
       database: string;
+      sslmode?: string;
     },
   ) {
     env.DB_HOST = connection.host;
@@ -348,6 +352,9 @@ export class SettingsService {
     env.DB_NAME = connection.database;
     if (connection.password !== undefined) {
       env.DB_PASSWORD = connection.password;
+    }
+    if (connection.sslmode !== undefined) {
+      env.DB_SSLMODE = connection.sslmode;
     }
   }
 
@@ -358,6 +365,7 @@ export class SettingsService {
     port: number;
     username: string;
     password?: string;
+    sslmode?: string;
     database: string;
   }> {
     const encoded = env[DB_CONNECTIONS_KEY];
@@ -381,6 +389,7 @@ export class SettingsService {
           const username = typeof item.username === 'string' ? item.username : '';
           const database = typeof item.database === 'string' ? item.database : '';
           const password = typeof item.password === 'string' ? item.password : undefined;
+          const sslmode = typeof item.sslmode === 'string' ? item.sslmode : undefined;
 
           if (!id || !host || !database || !username || !Number.isFinite(port) || port <= 0) {
             return null;
@@ -393,6 +402,7 @@ export class SettingsService {
             port,
             username,
             password,
+            sslmode,
             database,
           };
         })
@@ -411,6 +421,7 @@ export class SettingsService {
       port: number;
       username: string;
       password?: string;
+      sslmode?: string;
       database: string;
     }>,
   ) {
@@ -425,7 +436,7 @@ export class SettingsService {
 
   private normalizeDatabaseConnection(
     dto: DatabaseConnectionUpsertDto,
-    existingConnections: Array<{ id: string; password?: string }>,
+    existingConnections: Array<{ id: string; password?: string; sslmode?: string }>,
   ) {
     const id = dto.id?.trim();
     const host = dto.host?.trim();
@@ -448,6 +459,7 @@ export class SettingsService {
       username,
       database,
       password: dto.password !== undefined ? dto.password : existing?.password,
+      sslmode: dto.sslmode !== undefined ? dto.sslmode : existing?.sslmode,
     };
   }
 
@@ -471,6 +483,9 @@ export class SettingsService {
       delete activeConnection.password;
     } else if (env.DB_PASSWORD !== undefined) {
       activeConnection.password = env.DB_PASSWORD;
+    }
+    if (env.DB_SSLMODE !== undefined) {
+      activeConnection.sslmode = env.DB_SSLMODE;
     }
 
     this.writeDatabaseConnections(env, connections);

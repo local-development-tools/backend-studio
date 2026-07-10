@@ -1,7 +1,7 @@
 export class EditRecordDto {
-  table: string;
+  table!: string;
   schema?: string;
-  values: Record<string, unknown>;
-  where: Record<string, unknown>;
+  values!: Record<string, unknown>;
+  where!: Record<string, unknown>;
   returning?: string[];
 }
