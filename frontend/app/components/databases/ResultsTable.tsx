@@ -25,6 +25,9 @@ interface ResultsTableProps {
   schema?: string;
   primaryKey?: string;
   columnEnumValues?: Record<string, string[]>;
+  sortColumn?: string;
+  sortDirection?: "asc" | "desc";
+  onSortChange?: (column: string) => void;
   onDataUpdate?: (updatedData: Record<string, any>[]) => void;
   fontScale?: number;
   columnWidths?: Record<string, number>;
@@ -91,6 +94,9 @@ export const ResultsTable = ({
   schema = "public",
   primaryKey = "id",
   columnEnumValues = {},
+  sortColumn,
+  sortDirection,
+  onSortChange,
   onDataUpdate,
   fontScale = 100,
   columnWidths = {},
@@ -405,9 +411,14 @@ export const ResultsTable = ({
               {columns.map((col) => (
                 <th
                   key={col}
-                  className="relative select-none text-left px-3 py-2 font-semibold uppercase tracking-wide text-muted-foreground overflow-hidden"
+                  className="relative select-none text-left px-3 py-2 font-semibold uppercase tracking-wide text-muted-foreground overflow-hidden cursor-pointer hover:bg-muted/50"
+                  onClick={() => onSortChange?.(col)}
+                  title={`Sort by ${col}`}
                 >
-                  <span className="block truncate pr-2">{col}</span>
+                  <span className="block truncate pr-4">
+                    {col}
+                    {sortColumn === col && sortDirection ? ` (${sortDirection.toUpperCase()})` : ""}
+                  </span>
                   <div
                     className="absolute right-0 top-0 h-full w-2 cursor-col-resize hover:bg-primary/20"
                     onMouseDown={(event) => handleColumnResizeStart(event, col)}

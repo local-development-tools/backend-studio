@@ -45,6 +45,27 @@ const MIN_FONT_SCALE = 85;
 const MAX_FONT_SCALE = 140;
 const FONT_SCALE_STEP = 5;
 
+const getBaseSqlWithoutOrderBy = (sql: string) =>
+  sql.replace(/\s+order\s+by\s+[\s\S]*$/i, "").trimEnd();
+
+const buildTableSqlWithSort = (
+  baseSql: string,
+  column: string,
+  direction: "asc" | "desc",
+) => {
+  const cleanBaseSql = getBaseSqlWithoutOrderBy(baseSql).replace(/;\s*$/g, "");
+  const quotedColumn = `"${column.replace(/"/g, '""')}"`;
+  const limitMatch = cleanBaseSql.match(/\s+limit\s+\d+(?:\s+offset\s+\d+)?\s*$/i);
+
+  if (limitMatch) {
+    const limitClause = limitMatch[0].trim();
+    const withoutLimit = cleanBaseSql.slice(0, cleanBaseSql.length - limitClause.length).trimEnd();
+    return `${withoutLimit} ORDER BY ${quotedColumn} ${direction.toUpperCase()} ${limitClause};`;
+  }
+
+  return `${cleanBaseSql} ORDER BY ${quotedColumn} ${direction.toUpperCase()};`;
+};
+
 interface TableDisplayPreference {
   fontScale: number;
   columnWidths: Record<string, number>;
@@ -224,6 +245,8 @@ export const DatabasesScreen = ({
   const [columnEnumValues, setColumnEnumValues] = useState<
     Record<string, string[]>
   >({});
+  const [sortColumn, setSortColumn] = useState<string | null>(null);
+  const [sortDirection, setSortDirection] = useState<"asc" | "desc">("asc");
   const [selectedTableColumns, setSelectedTableColumns] = useState<string[]>(
     [],
   );
@@ -368,6 +391,19 @@ export const DatabasesScreen = ({
     } finally {
       setIsLoadingTables(false);
     }
+  };
+
+  const handleSortChange = (column: string) => {
+    if (!selectedTable || !sqlQuery.trim()) {
+      return;
+    }
+
+    const nextDirection = sortColumn === column && sortDirection === "asc" ? "desc" : "asc";
+    const nextSql = buildTableSqlWithSort(sqlQuery, column, nextDirection);
+    setSortColumn(column);
+    setSortDirection(nextDirection);
+    setSqlQueryWithPersistence(nextSql, selectedSchema, selectedDatabase);
+    void handleExecuteQuery(nextSql, selectedSchema);
   };
 
   const loadDatabases = async (preferredDatabase?: string) => {
@@ -642,6 +678,8 @@ export const DatabasesScreen = ({
     schema = selectedSchema,
     persistSelection = true,
   ) => {
+    setSortColumn(null);
+    setSortDirection("asc");
     setSelectedTable(table);
     if (!table) {
       setQueryResults(null);
@@ -654,19 +692,7 @@ export const DatabasesScreen = ({
     }
 
     const escapedTable = table.replace(/"/g, '""');
-    let orderClause = "";
-    try {
-      const tableSchema = await getTableSchema(selectedDatabase, table);
-      const orderByColumn = ["created_at", "created"].find((col) =>
-        tableSchema.columns.some((c) => c.column_name === col),
-      );
-      if (orderByColumn) {
-        orderClause = ` ORDER BY ${orderByColumn} DESC`;
-      }
-    } catch {
-      // If schema fetch fails, skip ordering
-    }
-    const sql = `SELECT * FROM "${escapedTable}"${orderClause} LIMIT 100;`;
+    const sql = `SELECT * FROM "${escapedTable}" LIMIT 100;`;
     setSqlQueryWithPersistence(sql, schema, selectedDatabase);
     void handleExecuteQuery(sql, schema);
   };
@@ -945,6 +971,9 @@ export const DatabasesScreen = ({
                             schema={selectedSchema}
                             primaryKey={primaryKey}
                             columnEnumValues={columnEnumValues}
+                            sortColumn={sortColumn ?? undefined}
+                            sortDirection={sortDirection}
+                            onSortChange={handleSortChange}
                             onDataUpdate={handleDataUpdate}
                             fontScale={fontScale}
                             columnWidths={columnWidths}
