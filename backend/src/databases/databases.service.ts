@@ -33,16 +33,18 @@ export class DatabasesService implements OnModuleInit {
     const username = process.env.DB_USER;
     const password = process.env.DB_PASSWORD;
     const database = process.env.DB_NAME;
+    const sslmode = process.env.DB_SSLMODE as PostgresConnectionDto['sslmode'] | undefined;
 
     if (!host || !port || !username || !database || password === undefined) {
       return;
     }
 
     try {
-      await this.connect({ host, port, username, password, database });
+      await this.connect({ host, port, username, password, database, sslmode });
       this.logger.log('Database connection restored from environment settings.');
     } catch (error) {
-      this.logger.error(`Failed to restore database connection from environment settings: ${error.message}`);
+      const message = error instanceof Error ? error.message : String(error);
+      this.logger.error(`Failed to restore database connection from environment settings: ${message}`);
     }
   }
 
@@ -74,6 +76,7 @@ export class DatabasesService implements OnModuleInit {
         user: connectionDto.username,
         password: connectionDto.password,
         database: connectionDto.database,
+        ssl: this.resolveSslConfig(connectionDto.sslmode),
       });
 
       const client = await this.pool.connect();
@@ -116,6 +119,22 @@ export class DatabasesService implements OnModuleInit {
       };
     } catch (error) {
       throw this._mapDbError(error, 'Query failed');
+    }
+  }
+
+  private resolveSslConfig(sslmode?: PostgresConnectionDto['sslmode']) {
+    switch (sslmode) {
+      case 'disable':
+        return false;
+      case 'allow':
+      case 'prefer':
+      case 'require':
+        return { rejectUnauthorized: false };
+      case 'verify-ca':
+      case 'verify-full':
+        return { rejectUnauthorized: true };
+      default:
+        return false;
     }
   }
 

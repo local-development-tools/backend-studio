@@ -1,13 +1,13 @@
-export interface DatabaseConnectionProfile {
-  id: string;
-  name: string;
-  host: string;
-  port: number;
-  database: string;
-  username: string;
-  password?: string;
-  passwordSet?: boolean;
-}
+import type { CloneSslMode } from "~/lib/api/databases";
+
+export const CLONE_SSL_MODE_OPTIONS: CloneSslMode[] = [
+  "disable",
+  "allow",
+  "prefer",
+  "require",
+  "verify-ca",
+  "verify-full",
+];
 
 export interface DatabaseConnectionProfile {
   id: string;
@@ -18,6 +18,7 @@ export interface DatabaseConnectionProfile {
   username: string;
   password?: string;
   passwordSet?: boolean;
+  sslmode?: CloneSslMode;
 }
 
 const randomPart = () => Math.random().toString(36).slice(2, 8);
