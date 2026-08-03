@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import { Request } from './entities/request.entity';
+import { BodyMode, Request } from './entities/request.entity';
 import { DEFAULT_POST_SCRIPT } from './constants';
 
 export type ParsedBruRequest = {
@@ -10,6 +10,7 @@ export type ParsedBruRequest = {
   pathParams?: Record<string, string>;
   headers?: Record<string, string>;
   body?: unknown;
+  bodyMode?: BodyMode;
   serverAddress?: string;
   service?: string;
   protoContent?: string;
@@ -39,8 +40,10 @@ export class RequestBruService {
     }
 
     const method = request.method.toLowerCase();
+    const bodyMode = request.bodyMode === 'form-urlencoded' ? 'form-urlencoded' : 'json';
+    const bruBodyMode = bodyMode === 'form-urlencoded' ? 'formUrlEncoded' : 'json';
     const metaBlock = `meta {\n  name: ${request.name}\n  type: http\n  seq: 1\n}`;
-    const methodBlock = `${method} {\n  url: ${request.url}\n  body: json\n  auth: inherit\n}`;
+    const methodBlock = `${method} {\n  url: ${request.url}\n  body: ${bruBodyMode}\n  auth: inherit\n}`;
 
     const paramsBlock =
       request.pathParams && Object.keys(request.pathParams).length > 0
@@ -52,7 +55,7 @@ export class RequestBruService {
         ? this.headersToBruBlock('headers', request.headers)
         : '';
 
-    const bodyBlock = request.body !== undefined ? `\n\nbody:json {\n${this.formatBruJsonBody(request.body)}\n}` : '';
+    const bodyBlock = this.formatBodyBlock(bodyMode, request.body);
 
     const settingsBlock = `\n\nsettings {\n  encodeUrl: true\n  timeout: 0\n}`;
     const postScriptBlock = `\n\nscript:post-response {\n${request.postScript
@@ -104,15 +107,8 @@ export class RequestBruService {
 
     const headers = this.parseHeadersBlock(contents, 'headers');
 
-    const bodyRaw = this.extractBruBlock(contents, 'body:json')?.trim();
-    let body: unknown = undefined;
-    if (bodyRaw && bodyRaw.length > 0) {
-      try {
-        body = JSON.parse(bodyRaw) as unknown;
-      } catch {
-        body = bodyRaw;
-      }
-    }
+    const bodyMode = this.parseBodyMode(contents);
+    const body = this.parseBody(contents, bodyMode);
 
     const postScriptRaw = this.extractBruBlock(contents, 'script:post-response');
     const postScript = postScriptRaw
@@ -123,7 +119,71 @@ export class RequestBruService {
           .trim() || DEFAULT_POST_SCRIPT
       : DEFAULT_POST_SCRIPT;
 
-    return { type, name, method, url, pathParams, headers, body, postScript };
+    return { type, name, method, url, pathParams, headers, body, bodyMode, postScript };
+  }
+
+  private formatBodyBlock(bodyMode: BodyMode, body: unknown): string {
+    if (body === undefined) {
+      return '';
+    }
+
+    if (bodyMode === 'form-urlencoded') {
+      const record = this.bodyToStringRecord(body);
+      if (!record || Object.keys(record).length === 0) {
+        return '';
+      }
+      return this.headersToBruBlock('body:form-urlencoded', record);
+    }
+
+    return `\n\nbody:json {\n${this.formatBruJsonBody(body)}\n}`;
+  }
+
+  private parseBodyMode(contents: string): BodyMode {
+    const methodBodyMatch = contents.match(
+      /^\s*(?:get|post|put|patch|delete|head|options)\s*\{[\s\S]*?\bbody:\s*([^\n\r]+)/im,
+    );
+    const declared = (methodBodyMatch?.[1] ?? '').trim().toLowerCase();
+    if (declared === 'formurlencoded' || declared === 'form-urlencoded') {
+      return 'form-urlencoded';
+    }
+
+    if (this.extractBruBlock(contents, 'body:form-urlencoded') !== null) {
+      return 'form-urlencoded';
+    }
+
+    return 'json';
+  }
+
+  private parseBody(contents: string, bodyMode: BodyMode): unknown {
+    if (bodyMode === 'form-urlencoded') {
+      return this.parseHeadersBlock(contents, 'body:form-urlencoded');
+    }
+
+    const bodyRaw = this.extractBruBlock(contents, 'body:json')?.trim();
+    if (!bodyRaw || bodyRaw.length === 0) {
+      return undefined;
+    }
+
+    try {
+      return JSON.parse(bodyRaw) as unknown;
+    } catch {
+      return bodyRaw;
+    }
+  }
+
+  private bodyToStringRecord(body: unknown): Record<string, string> | undefined {
+    if (!body || typeof body !== 'object' || Array.isArray(body)) {
+      return undefined;
+    }
+
+    const record: Record<string, string> = {};
+    for (const [key, value] of Object.entries(body as Record<string, unknown>)) {
+      if (!key) {
+        continue;
+      }
+      record[key] = value === undefined || value === null ? '' : String(value);
+    }
+    return record;
   }
 
   private headersToBruBlock(blockName: string, headers: Record<string, string>): string {

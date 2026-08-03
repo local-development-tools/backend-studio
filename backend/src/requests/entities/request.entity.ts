@@ -1,3 +1,5 @@
+export type BodyMode = 'json' | 'form-urlencoded';
+
 export interface Request {
   id: string;
   type: 'http' | 'grpc';
@@ -7,6 +9,7 @@ export interface Request {
   pathParams?: Record<string, string>;
   headers?: Record<string, string>;
   body?: unknown;
+  bodyMode?: BodyMode;
   serverAddress?: string;
   service?: string;
   protoContent?: string;

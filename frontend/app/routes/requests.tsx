@@ -58,8 +58,11 @@ import {
 import {
   buildRequestUrl,
   buildUrlWithQuery,
+  bodyToFormPairs,
+  normalizeBodyMode,
   parseBodyToApi,
   parseBodyToEditor,
+  serializeHttpBody,
   syncPathParamsWithUrl,
   toKeyValuePairs,
   toKeyValueRecord,
@@ -172,6 +175,7 @@ export default function Requests() {
             toKeyValuePairs(data.pathParams ?? {}),
           );
           const queryParts = new URL(data.url, "http://placeholder.local");
+          const bodyMode = normalizeBodyMode(data.bodyMode);
           mappedRequest = {
             id: data.id,
             name: data.name,
@@ -188,7 +192,9 @@ export default function Requests() {
             queryParams: Array.from(queryParts.searchParams.entries()).map(
               ([key, value]) => ({key, value}),
             ),
-            body: parseBodyToEditor(data.body),
+            bodyMode,
+            body: bodyMode === "form-urlencoded" ? "" : parseBodyToEditor(data.body),
+            formBody: bodyMode === "form-urlencoded" ? bodyToFormPairs(data.body) : [],
             postScript: data.postScript,
             collectionId: data.collectionId ?? undefined,
           };
@@ -286,7 +292,8 @@ export default function Requests() {
             url: buildUrlWithQuery(updated.url, updated.queryParams),
             pathParams: toKeyValueRecord(updated.pathParams),
             headers: toHeaderRecord(updated.headers),
-            body: parseBodyToApi(updated.body),
+            bodyMode: updated.bodyMode,
+            body: serializeHttpBody(updated),
             postScript: updated.postScript ?? "",
           }
         : {
@@ -339,7 +346,8 @@ export default function Requests() {
             ),
             pathParams: toKeyValueRecord(selectedRequest.pathParams),
             headers: toHeaderRecord(selectedRequest.headers),
-            body: parseBodyToApi(selectedRequest.body),
+            bodyMode: selectedRequest.bodyMode,
+            body: serializeHttpBody(selectedRequest),
             postScript: selectedRequest.postScript ?? "",
           }
         : null;
@@ -368,9 +376,20 @@ export default function Requests() {
                 value: interpolateVariables(h.value, collectionId, envVars),
               })),
             ),
-            body: parseBodyToApi(
-              interpolateVariables(selectedRequest.body, collectionId, envVars),
-            ),
+            bodyMode: selectedRequest.bodyMode,
+            body:
+              selectedRequest.bodyMode === "form-urlencoded"
+                ? serializeHttpBody({
+                    bodyMode: "form-urlencoded",
+                    body: "",
+                    formBody: selectedRequest.formBody.map((item) => ({
+                      ...item,
+                      value: interpolateVariables(item.value, collectionId, envVars),
+                    })),
+                  })
+                : parseBodyToApi(
+                    interpolateVariables(selectedRequest.body, collectionId, envVars),
+                  ),
             postScript: selectedRequest.postScript ?? "",
           }
         : null;

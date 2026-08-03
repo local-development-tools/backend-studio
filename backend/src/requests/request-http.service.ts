@@ -45,6 +45,7 @@ export class RequestHttpService {
       pathParams: createRequestDto.pathParams,
       headers: createRequestDto.headers,
       body: createRequestDto.body,
+      bodyMode: createRequestDto.bodyMode ?? 'json',
       postScript: DEFAULT_POST_SCRIPT,
       collectionId: createRequestDto.collectionId,
       folderId: createRequestDto.folderId,
@@ -78,6 +79,7 @@ export class RequestHttpService {
     url: string;
     headers?: Record<string, string>;
     body?: unknown;
+    bodyMode?: 'json' | 'form-urlencoded';
   }): Promise<RunRequestResult> {
     const started = Date.now();
     try {
@@ -88,7 +90,13 @@ export class RequestHttpService {
 
       let body: string | undefined = undefined;
       if (methodAllowsBody && input.body !== undefined) {
-        if (typeof input.body === 'string') {
+        if (input.bodyMode === 'form-urlencoded') {
+          body = this._encodeFormUrlEncoded(input.body);
+          const existingContentTypeKey = Object.keys(headers).find((k) => k.toLowerCase() === 'content-type');
+          if (!existingContentTypeKey) {
+            headers['Content-Type'] = 'application/x-www-form-urlencoded';
+          }
+        } else if (typeof input.body === 'string') {
           body = input.body;
         } else {
           body = JSON.stringify(input.body);
@@ -138,5 +146,24 @@ export class RequestHttpService {
         error: (error as Error).message,
       };
     }
+  }
+
+  private _encodeFormUrlEncoded(body: unknown): string {
+    const params = new URLSearchParams();
+
+    if (typeof body === 'string') {
+      return body;
+    }
+
+    if (body && typeof body === 'object' && !Array.isArray(body)) {
+      for (const [key, value] of Object.entries(body as Record<string, unknown>)) {
+        if (!key) {
+          continue;
+        }
+        params.append(key, value === undefined || value === null ? '' : String(value));
+      }
+    }
+
+    return params.toString();
   }
 }

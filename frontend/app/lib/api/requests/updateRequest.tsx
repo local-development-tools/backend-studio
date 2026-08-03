@@ -1,4 +1,5 @@
 import { API_BASE_URL } from '~/lib/api/config';
+import type { BodyMode } from '~/components/requests/types';
 
 export interface UpdateRequestPayload {
 	type?: 'http' | 'grpc';
@@ -8,6 +9,7 @@ export interface UpdateRequestPayload {
 	pathParams?: Record<string, string>;
 	headers?: Record<string, string>;
 	body?: unknown;
+	bodyMode?: BodyMode;
 	serverAddress?: string;
 	service?: string;
 	protoContent?: string;
@@ -27,6 +29,7 @@ export interface ApiRequest {
 	pathParams?: Record<string, string>;
 	headers?: Record<string, string>;
 	body?: unknown;
+	bodyMode?: BodyMode;
 	serverAddress?: string;
 	service?: string;
 	protoContent?: string;

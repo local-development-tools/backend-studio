@@ -1,4 +1,4 @@
-import type { HttpMethod } from '~/components/requests/types';
+import type { BodyMode, HttpMethod } from '~/components/requests/types';
 import { API_BASE_URL } from '~/lib/api/config';
 
 // --- Types ---
@@ -17,7 +17,8 @@ export interface HttpRequestDto extends BaseRequestDto {
   method: HttpMethod | string;
   pathParams?: Record<string, string>;
   headers?: Record<string, string>;
-  body?: Record<string, string>;
+  body?: unknown;
+  bodyMode?: BodyMode;
   postScript?: string;
 }
 
@@ -39,7 +40,8 @@ export interface CreateRequestDto {
   method?: HttpMethod | string;
   pathParams?: Record<string, string>;
   headers?: Record<string, string>;
-  body?: Record<string, string>;
+  body?: unknown;
+  bodyMode?: BodyMode;
 }
 
 export interface UpdateRequestDto {
@@ -48,7 +50,8 @@ export interface UpdateRequestDto {
   method?: HttpMethod | string;
   pathParams?: Record<string, string>;
   headers?: Record<string, string>;
-  body?: Record<string, string>;
+  body?: unknown;
+  bodyMode?: BodyMode;
   postScript?: string;
 }
 

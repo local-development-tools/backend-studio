@@ -1,5 +1,6 @@
 export type RequestType = 'http' | 'grpc';
 export type HttpMethod = 'GET' | 'POST' | 'PUT' | 'DELETE' | 'PATCH';
+export type BodyMode = 'json' | 'form-urlencoded';
 
 export interface HttpRequest {
   id: string;
@@ -10,7 +11,9 @@ export interface HttpRequest {
   pathParams: { key: string; value: string }[];
   headers: { key: string; value: string }[];
   queryParams: { key: string; value: string }[];
+  bodyMode: BodyMode;
   body: string;
+  formBody: { key: string; value: string }[];
   postScript?: string;
   collectionId?: string;
 }

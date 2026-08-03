@@ -1,3 +1,5 @@
+import type { BodyMode } from '../entities/request.entity';
+
 export class UpdateRequestDto {
   type?: 'http' | 'grpc';
   name?: string;
@@ -6,6 +8,7 @@ export class UpdateRequestDto {
   pathParams?: Record<string, string>;
   headers?: Record<string, string>;
   body?: unknown;
+  bodyMode?: BodyMode;
   serverAddress?: string;
   service?: string;
   protoContent?: string;

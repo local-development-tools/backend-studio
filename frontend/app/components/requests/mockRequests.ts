@@ -10,7 +10,9 @@ export const mockRequests: Request[] = [
     pathParams: [],
     headers: [{ key: 'Authorization', value: 'Bearer {{token}}' }],
     queryParams: [{ key: 'page', value: '1' }, { key: 'limit', value: '20' }],
+    bodyMode: 'json',
     body: '',
+    formBody: [],
   },
   {
     id: 'http-2',
@@ -24,7 +26,9 @@ export const mockRequests: Request[] = [
       { key: 'Content-Type', value: 'application/json' },
     ],
     queryParams: [],
+    bodyMode: 'json',
     body: '{\n  "name": "John Doe",\n  "email": "john@example.com"\n}',
+    formBody: [],
   },
   {
     id: 'http-3',
@@ -38,7 +42,9 @@ export const mockRequests: Request[] = [
       { key: 'Content-Type', value: 'application/json' },
     ],
     queryParams: [],
+    bodyMode: 'json',
     body: '{\n  "name": "Jane Doe"\n}',
+    formBody: [],
   },
   {
     id: 'http-4',
@@ -49,7 +55,9 @@ export const mockRequests: Request[] = [
     pathParams: [{ key: 'id', value: '123' }],
     headers: [{ key: 'Authorization', value: 'Bearer {{token}}' }],
     queryParams: [],
+    bodyMode: 'json',
     body: '',
+    formBody: [],
   },
   {
     id: 'grpc-1',

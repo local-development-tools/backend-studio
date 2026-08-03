@@ -1,4 +1,4 @@
-import type { GrpcRequest, HttpMethod, HttpRequest, MockResponse } from "~/components/requests/types";
+import type { BodyMode, GrpcRequest, HttpMethod, HttpRequest, MockResponse } from "~/components/requests/types";
 import type { ApiRequest } from "./listRootRequests";
 
 const PATH_PARAM_PATTERN = /:([A-Za-z0-9_]+)/g;
@@ -29,6 +29,9 @@ export const toKeyValueRecord = (items: {key: string; value: string; enabled?: b
     return acc;
   }, {});
 
+export const normalizeBodyMode = (bodyMode?: string): BodyMode =>
+  bodyMode === "form-urlencoded" ? "form-urlencoded" : "json";
+
 export const parseBodyToEditor = (body: unknown): string => {
   if (body === undefined || body === null) {
     return "";
@@ -53,6 +56,23 @@ export const parseBodyToApi = (body: string): unknown => {
   } catch {
     return body;
   }
+};
+
+export const bodyToFormPairs = (body: unknown): {key: string; value: string}[] => {
+  if (!body || typeof body !== "object" || Array.isArray(body)) {
+    return [];
+  }
+  return Object.entries(body as Record<string, unknown>).map(([key, value]) => ({
+    key,
+    value: value === undefined || value === null ? "" : String(value),
+  }));
+};
+
+export const serializeHttpBody = (request: Pick<HttpRequest, "bodyMode" | "body" | "formBody">): unknown => {
+  if (request.bodyMode === "form-urlencoded") {
+    return toKeyValueRecord(request.formBody);
+  }
+  return parseBodyToApi(request.body);
 };
 
 export const parseUrlParts = (
@@ -167,6 +187,7 @@ export const buildRequestUrl = (
 
 export const toHttpRequest = (item: ApiRequest): HttpRequest => {
   const parsedUrl = parseUrlParts(item.url);
+  const bodyMode = normalizeBodyMode(item.bodyMode);
   return {
     id: item.id,
     name: item.name,
@@ -176,7 +197,9 @@ export const toHttpRequest = (item: ApiRequest): HttpRequest => {
     pathParams: syncPathParamsWithUrl(item.url, toKeyValuePairs(item.pathParams ?? {})),
     headers: toHeaderPairs(item.headers),
     queryParams: parsedUrl.queryParams,
-    body: parseBodyToEditor(item.body),
+    bodyMode,
+    body: bodyMode === "form-urlencoded" ? "" : parseBodyToEditor(item.body),
+    formBody: bodyMode === "form-urlencoded" ? bodyToFormPairs(item.body) : [],
   };
 };
 

@@ -64,6 +64,7 @@ export class RunnerService {
       url: resolveRequestUrl(parsed.url, parsed.pathParams),
       headers: parsed.headers,
       body: parsed.body,
+      bodyMode: parsed.bodyMode,
     });
   }
 

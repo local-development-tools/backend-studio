@@ -3,7 +3,7 @@ import {Send } from 'lucide-react';
 
 import { MethodBadge } from './MethodBadge';
 
-import type { HttpMethod, HttpRequest } from './types';
+import type { BodyMode, HttpMethod, HttpRequest } from './types';
 import { cn } from '~/lib/utils';
 import { KeyValueEditor } from './KeyValueEditor';
 import { COMMON_HTTP_HEADERS } from './constants';
@@ -128,12 +128,41 @@ export const HttpRequestEditor = ({ request, onChange, onSend, envSelector }: Ht
             keyAutocomplete={COMMON_HTTP_HEADERS}
           />
         </TabsContent>
-        <TabsContent value="body" className="flex-1 m-0 mt-2 min-h-0">
-          <HttpBodyEditor
-            value={request.body}
-            onChange={(body) => onChange({ ...request, body })}
-            placeholder='{\n  "key": "value"\n}'
-          />
+        <TabsContent value="body" className="flex-1 m-0 mt-2 min-h-0 flex flex-col gap-2">
+          <div className="flex items-center gap-2 shrink-0">
+            <span className="text-[10px] uppercase tracking-wide text-muted-foreground px-1">Type</span>
+            <Select
+              value={request.bodyMode}
+              onValueChange={(value) =>
+                onChange({
+                  ...request,
+                  bodyMode: value as BodyMode,
+                })
+              }
+            >
+              <SelectTrigger className="h-7 w-[200px] text-xs">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="json">JSON</SelectItem>
+                <SelectItem value="form-urlencoded">x-www-form-urlencoded</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          {request.bodyMode === 'form-urlencoded' ? (
+            <div className="flex-1 min-h-0 overflow-auto">
+              <KeyValueEditor
+                items={request.formBody}
+                onChange={(formBody) => onChange({ ...request, formBody })}
+              />
+            </div>
+          ) : (
+            <HttpBodyEditor
+              value={request.body}
+              onChange={(body) => onChange({ ...request, body })}
+              placeholder='{\n  "key": "value"\n}'
+            />
+          )}
         </TabsContent>
         <TabsContent value="script" className="flex-1 m-0 mt-2 min-h-0">
           <ScriptEditor
