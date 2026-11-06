@@ -11,6 +11,8 @@ COPY ./package.json pnpm-lock.yaml /app/
 RUN pnpm install --frozen-lockfile --prod
 
 FROM base AS build-env
+ARG VITE_API_BASE_URL=http://localhost:3847
+ENV VITE_API_BASE_URL=$VITE_API_BASE_URL
 COPY . /app/
 COPY --from=development-dependencies-env /app/node_modules /app/node_modules
 RUN pnpm run build

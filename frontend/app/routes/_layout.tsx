@@ -15,7 +15,14 @@ export default function Layout() {
   const [selectedStack, setSelectedStack] = useState<StackNameDto>("");
 
   useEffect(() => {
-    getStackNames().then((names) => setStacks(names));
+    getStackNames()
+      .then((names) => {
+        setStacks(names);
+        setSelectedStack((current) => current || names[0] || "");
+      })
+      .catch(() => {
+        setStacks([]);
+      });
   }, []);
 
   return (
