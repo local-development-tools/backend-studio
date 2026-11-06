@@ -140,19 +140,3 @@ export async function patchAiSettings(payload: AiSettingsPatch): Promise<AiSetti
   if (!res.ok) throw new Error(`Failed to save AI settings: ${res.status}`);
   return res.json() as Promise<AiSettingsResponse>;
 }
-
-export async function getMicroservicesRoot(): Promise<{ path: string | null }> {
-  const res = await fetch(`${API_BASE_URL}/settings/microservices-root`);
-  if (!res.ok) throw new Error(`Failed to get microservices root: ${res.status}`);
-  return res.json() as Promise<{ path: string | null }>;
-}
-
-export async function patchMicroservicesRoot(path: string): Promise<{ path: string }> {
-  const res = await fetch(`${API_BASE_URL}/settings/microservices-root`, {
-    method: 'PATCH',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ path }),
-  });
-  if (!res.ok) throw new Error(`Failed to save microservices root: ${res.status}`);
-  return res.json() as Promise<{ path: string }>;
-}

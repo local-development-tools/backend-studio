@@ -13,7 +13,6 @@ import {
   controlContainerLifecycle,
   getContainersByStack,
   getContainersWithoutStack,
-  getStaleContainers,
   streamContainerLifecycle,
   type ContainerDto,
   type ContainerLifecycleEvent,
@@ -51,12 +50,11 @@ export const ContainersBar = ({
   const stackNames = hasNoStackContainers ? [...stacks, OTHER_STACK_VALUE] : stacks;
   const isOtherSelected = selectedStack === OTHER_STACK_VALUE;
   const [currentContainers, setCurrentContainers] = useState<ContainerDto[]>([]);
-  const [staleIds, setStaleIds] = useState<Set<string>>(new Set());
-    useEffect(() => {
+  const [pendingLifecycleIds, setPendingLifecycleIds] = useState<Set<string>>(new Set());
+
+  useEffect(() => {
     setExpanded(false);
   }, [location.pathname]);
-  
-  const [pendingLifecycleIds, setPendingLifecycleIds] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     let cancelled = false;
@@ -94,19 +92,6 @@ export const ContainersBar = ({
         setHasNoStackContainers(containers.length > 0);
       }
     });
-
-    if (isOtherSelected) {
-      setStaleIds(new Set());
-      return;
-    }
-
-    getStaleContainers(selectedStack)
-      .then((results) => {
-        setStaleIds(
-          new Set(results.filter((r) => r.stale).map((r) => r.containerId)),
-        );
-      })
-      .catch(() => {});
   }, [isOtherSelected, selectedStack]);
 
   useEffect(() => {
@@ -200,7 +185,6 @@ export const ContainersBar = ({
     setCurrentContainers(containers);
 
     if (isOtherSelected) {
-      setStaleIds(new Set());
       setHasNoStackContainers(containers.length > 0);
       if (containers.length === 0) {
         setSelectedStack(stacks[0] ?? "");
@@ -292,7 +276,6 @@ export const ContainersBar = ({
               <ContainerItem
                 key={container.id}
                 container={container}
-                stale={staleIds.has(container.id)}
                 busy={pendingLifecycleIds.has(container.id)}
                 onToggleRunningState={() => handleToggleContainerState(container)}
               />

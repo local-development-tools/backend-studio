@@ -82,17 +82,6 @@ export function getStackNames(): Promise<StackNameDto[]> {
   );
 }
 
-export function getStaleContainers(
-  stack: string,
-): Promise<{ containerId: string; stale: boolean }[]> {
-  return fetch(
-    `${API_BASE_URL}/containers/stale/${encodeURIComponent(stack)}`,
-  ).then((res) => {
-    if (!res.ok) throw new Error(`Failed to fetch stale containers for stack ${stack}`);
-    return res.json() as Promise<{ containerId: string; stale: boolean }[]>;
-  });
-}
-
 export function streamContainerLifecycle(
   onEvent: (event: ContainerLifecycleEvent) => void,
   onError?: (error: Event) => void,

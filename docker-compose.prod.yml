@@ -24,13 +24,9 @@ services:
       - /var/run/docker.sock:/var/run/docker.sock
       - ./backend/data:/app/data
       - ./backend/data/exports:/host-exports
-      - ${MICROSERVICES_ROOT:-/tmp}:/microservices:ro
       - type: bind
         source: ./backend/.env
         target: /app/.env
-      - type: bind
-        source: ./.env
-        target: /root.env
     restart: unless-stopped
 
   frontend:

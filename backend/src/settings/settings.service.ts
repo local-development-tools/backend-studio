@@ -24,7 +24,6 @@ const AI_KEYS = [
 @Injectable()
 export class SettingsService {
   private readonly envFilePath = resolve(__dirname, '../../.env');
-  private readonly rootEnvFilePath = '/root.env';
 
   constructor(private readonly databasesService: DatabasesService) {}
 
@@ -193,18 +192,6 @@ export class SettingsService {
     this.applyToProcessEnv(env);
 
     return this.toPublicAiSettings(env);
-  }
-
-  getMicroservicesRoot(): { path: string | null } {
-    const env = this.readEnvFileAt(this.rootEnvFilePath);
-    return { path: env['MICROSERVICES_ROOT'] ?? null };
-  }
-
-  setMicroservicesRoot(path: string): { path: string } {
-    const env = this.readEnvFileAt(this.rootEnvFilePath);
-    env['MICROSERVICES_ROOT'] = path;
-    this.writeEnvFileAt(this.rootEnvFilePath, env);
-    return { path };
   }
 
   private readEnvFile(): EnvMap {

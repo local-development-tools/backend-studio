@@ -43,11 +43,6 @@ export class ContainersController {
     return await this.containersService.getStackNames();
   }
 
-  @Get('stale/:stackName')
-  async getStaleContainers(@Param('stackName') stackName: string) {
-    return await this.containersService.getStaleContainers(stackName);
-  }
-
   @Post(':id/lifecycle/:action')
   async controlContainerLifecycle(@Param('id') containerId: string, @Param('action') action: string): Promise<any> {
     return await this.containersService.controlContainerLifecycle(containerId, action);

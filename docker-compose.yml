@@ -24,10 +24,6 @@ services:
       - /app/node_modules
       - ./backend/data:/app/data
       - ./backend/data/exports:/host-exports
-      - ${MICROSERVICES_ROOT:-/tmp}:/microservices:ro
-      - type: bind
-        source: ./.env
-        target: /root.env
     restart: unless-stopped
 
   frontend:

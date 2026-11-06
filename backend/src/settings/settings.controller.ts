@@ -3,9 +3,6 @@ import { SettingsService } from './settings.service';
 import { DatabaseSettingsDto } from './dto/database-settings.dto';
 import { AiSettingsDto } from './dto/ai-settings.dto';
 import { ActiveDatabaseConnectionDto, DatabaseConnectionUpsertDto } from './dto/database-connection.dto';
-class MicroservicesRootDto {
-  path!: string;
-}
 
 @Controller('settings')
 export class SettingsController {
@@ -69,15 +66,5 @@ export class SettingsController {
   @Delete('ai')
   clearAiSettings() {
     return this.settingsService.clearAiSettings();
-  }
-
-  @Get('microservices-root')
-  getMicroservicesRoot() {
-    return this.settingsService.getMicroservicesRoot();
-  }
-
-  @Patch('microservices-root')
-  setMicroservicesRoot(@Body() dto: MicroservicesRootDto) {
-    return this.settingsService.setMicroservicesRoot(dto.path);
   }
 }

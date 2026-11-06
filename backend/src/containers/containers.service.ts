@@ -9,13 +9,10 @@ import {
   ServiceUnavailableException,
 } from '@nestjs/common';
 import Docker from 'dockerode';
-import { statSync } from 'node:fs';
-import { join } from 'node:path';
 import { PassThrough, Readable } from 'stream';
 import { Observable, Subject } from 'rxjs';
 import { map } from 'rxjs/operators';
 
-const MICROSERVICES_MOUNT = '/microservices';
 type DockerContainerInfo = Awaited<ReturnType<Docker['listContainers']>>[number];
 
 type ContainerLifecycleAction = 'start' | 'stop' | 'restart' | 'pause' | 'unpause' | 'kill';
@@ -169,47 +166,6 @@ export class ContainersService implements OnModuleInit, OnModuleDestroy {
       return output;
     } catch (error) {
       this.throwDockerError(error, { containerId });
-    }
-  }
-
-  async getStaleContainers(stackName: string): Promise<{ containerId: string; stale: boolean }[]> {
-    try {
-      const containers = await docker.listContainers({ all: false });
-      const stackContainers = containers.filter((c) => c.Labels?.['com.docker.compose.project'] === stackName);
-
-      const results: { containerId: string; stale: boolean }[] = [];
-
-      for (const container of stackContainers) {
-        const serviceName = container.Labels?.['com.docker.compose.service'];
-        if (!serviceName) continue;
-
-        const folder = serviceName.split('-')[0];
-        const pyprojectPath = join(MICROSERVICES_MOUNT, folder, 'pyproject.toml');
-
-        let pyprojectMtime: Date;
-        try {
-          pyprojectMtime = statSync(pyprojectPath).mtime;
-        } catch {
-          continue;
-        }
-
-        let imageBuildTime: Date;
-        try {
-          const imageInfo = await docker.getImage(container.ImageID).inspect();
-          imageBuildTime = new Date(imageInfo.Created);
-        } catch {
-          continue;
-        }
-
-        results.push({
-          containerId: container.Id,
-          stale: pyprojectMtime > imageBuildTime,
-        });
-      }
-
-      return results;
-    } catch (error) {
-      this.throwDockerError(error);
     }
   }
 

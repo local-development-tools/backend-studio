@@ -7,21 +7,19 @@ import {
   CardHeader,
   CardTitle,
 } from "~/components/ui/card";
-import { Bot, Database, FolderOpen, Loader2, Palette, Plus, Trash2, TriangleAlert } from "lucide-react";
+import { Bot, Database, Loader2, Palette, Plus, Trash2 } from "lucide-react";
 import {Input} from "~/components/ui/input";
 import {Label} from "~/components/ui/label";
 import {useTheme} from "~/components/theme-provider";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "~/components/ui/select";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import {
   activateDatabaseConnection,
   deleteDatabaseConnection,
   getDatabaseConnections,
   getAiSettings,
   getDatabaseSettings,
-  getMicroservicesRoot,
   patchAiSettings,
-  patchMicroservicesRoot,
   upsertDatabaseConnection as upsertDatabaseConnectionApi,
   type AiProvider,
   type DatabaseConnectionResponse,
@@ -32,7 +30,6 @@ import {
   type DatabaseConnectionProfile,
   getConnectionDisplayName,
 } from "~/lib/db-connections";
-import { Badge } from "~/components/ui/badge";
 import { toast } from "sonner";
 
 export function meta({}: Route.MetaArgs) {
@@ -58,10 +55,6 @@ export default function Settings() {
   const [dbPasswordSet, setDbPasswordSet] = useState(false);
   const [isSavingDb, setIsSavingDb] = useState(false);
 
-  const [microservicesPath, setMicroservicesPath] = useState("");
-  const [savedPath, setSavedPath] = useState<string | null>(null);
-  const [isSaving, setIsSaving] = useState(false);
-  const [restartRequired, setRestartRequired] = useState(false);
   const [aiProvider, setAiProvider] = useState<AiProvider>("openai");
   const [aiModel, setAiModel] = useState("");
   const [openAiApiKey, setOpenAiApiKey] = useState("");
@@ -71,7 +64,6 @@ export default function Settings() {
   const [openAiKeySet, setOpenAiKeySet] = useState(false);
   const [anthropicKeySet, setAnthropicKeySet] = useState(false);
   const [isSavingAi, setIsSavingAi] = useState(false);
-  const inputRef = useRef<HTMLInputElement>(null);
 
   const persistConnections = (nextConnections: DatabaseConnectionProfile[]) => {
     setDbConnections(nextConnections);
@@ -146,14 +138,6 @@ export default function Settings() {
         setLmStudioModel(ai.lmStudio.model ?? "llama-3.2-3b-instruct");
         setOpenAiKeySet(ai.openAIApiKeySet);
         setAnthropicKeySet(ai.anthropicApiKeySet);
-      })
-      .catch(() => {});
-
-    getMicroservicesRoot()
-      .then(({path}) => {
-        const val = path ?? "";
-        setMicroservicesPath(val);
-        setSavedPath(path);
       })
       .catch(() => {});
   }, []);
@@ -263,20 +247,6 @@ export default function Settings() {
       toast.error("Failed to save AI settings");
     } finally {
       setIsSavingAi(false);
-    }
-  };
-
-  const handleSavePath = async () => {
-    const trimmed = microservicesPath.trim();
-    if (!trimmed || trimmed === savedPath) return;
-
-    setIsSaving(true);
-    try {
-      const result = await patchMicroservicesRoot(trimmed);
-      setSavedPath(result.path);
-      setRestartRequired(true);
-    } finally {
-      setIsSaving(false);
     }
   };
 
@@ -623,50 +593,6 @@ export default function Settings() {
             <Button className="w-full" onClick={handleSaveAi} disabled={isSavingAi}>
               {isSavingAi ? <Loader2 className="h-4 w-4 animate-spin" /> : "Save AI Settings"}
             </Button>
-          </CardContent>
-        </Card>
-
-        <Card className="w-full">
-          <CardHeader>
-            <div className="flex items-center gap-2">
-              <FolderOpen className="h-5 w-5" />
-              <CardTitle>Microservices</CardTitle>
-            </div>
-            <CardDescription>
-              Path on the host where all microservice projects live
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="microservices-root">Microservices root folder</Label>
-              <div className="flex gap-2">
-                <Input
-                  id="microservices-root"
-                  ref={inputRef}
-                  placeholder="/Users/you/Projects"
-                  value={microservicesPath}
-                  onChange={(e) => {
-                    setMicroservicesPath(e.target.value);
-                    setRestartRequired(false);
-                  }}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter") handleSavePath();
-                  }}
-                />
-                <Button onClick={handleSavePath} disabled={isSaving || !microservicesPath.trim()}>
-                  {isSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : "Save"}
-                </Button>
-              </div>
-              <p className="text-xs text-muted-foreground">
-                Each subdirectory name is matched against the first segment of the Docker Compose service name (e.g. <code>callisto/</code> → service <code>callisto-grpc</code>)
-              </p>
-            </div>
-            {restartRequired && (
-              <div className="flex items-center gap-2 rounded-md border border-yellow-500/50 bg-yellow-500/10 px-3 py-2 text-sm text-yellow-600 dark:text-yellow-400">
-                <TriangleAlert className="h-4 w-4 shrink-0" />
-                Restart containers to apply the new path (<code>docker compose down && docker compose up -d</code>)
-              </div>
-            )}
           </CardContent>
         </Card>
 
