@@ -15,9 +15,12 @@ COPY . /app/
 COPY --from=development-dependencies-env /app/node_modules /app/node_modules
 RUN pnpm run build
 
-FROM node:20-alpine
+FROM node:20-alpine AS runtime
 COPY ./package.json pnpm-lock.yaml /app/
 COPY --from=production-dependencies-env /app/node_modules /app/node_modules
 COPY --from=build-env /app/build /app/build
 WORKDIR /app
+ENV NODE_ENV=production
+ENV PORT=5847
+EXPOSE 5847
 CMD ["npm", "run", "start"]

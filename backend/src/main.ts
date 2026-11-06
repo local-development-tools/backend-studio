@@ -10,7 +10,7 @@ async function bootstrap() {
   dotenv.config({ path: resolve(__dirname, '../.env') });
 
   const app = await NestFactory.create(AppModule);
-  const corsOrigin = process.env.CORS_ORIGIN ?? 'http://localhost:5174';
+  const corsOrigin = process.env.CORS_ORIGIN ?? 'http://localhost:5847';
   app.enableCors({
     origin: corsOrigin,
     methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
@@ -18,6 +18,6 @@ async function bootstrap() {
   });
   app.use(json({ limit: process.env.BODY_SIZE_LIMIT ?? '2mb' }));
   app.use(urlencoded({ extended: true, limit: process.env.BODY_SIZE_LIMIT ?? '2mb' }));
-  await app.listen(process.env.PORT ?? 3000);
+  await app.listen(process.env.PORT ?? 3847);
 }
 bootstrap();

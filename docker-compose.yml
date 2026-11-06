@@ -11,12 +11,13 @@ services:
       - path: ./backend/.env
         required: false
     environment:
-      PORT: 3000
+      PORT: 3847
+      CORS_ORIGIN: http://localhost:5847
       LMSTUDIO_BASE_URL: ${LMSTUDIO_BASE_URL:-ws://host.docker.internal:1234}
       LMSTUDIO_MODEL: ${LMSTUDIO_MODEL:-llama-3.2-3b-instruct}
       NODE_ENV: development
     ports:
-      - "3000:3000"
+      - "3847:3847"
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
       - ./backend:/app
@@ -37,8 +38,8 @@ services:
     depends_on:
       - backend
     environment:
-      PORT: 5174
+      PORT: 5847
       NODE_ENV: production
     ports:
-      - "5174:5174"
+      - "5847:5847"
     restart: unless-stopped

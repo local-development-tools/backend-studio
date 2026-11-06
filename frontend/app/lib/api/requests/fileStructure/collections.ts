@@ -1,3 +1,5 @@
+import { API_BASE_URL } from '~/lib/api/config';
+
 // --- Types ---
 export interface CollectionDto {
   id: string;
@@ -37,21 +39,21 @@ export interface ImportCollectionDto {
 
 // --- API functions ---
 export function getCollections(): Promise<CollectionDto[]> {
-  return fetch("http://localhost:3000" + "/collections").then((res) => {
+  return fetch(`${API_BASE_URL}/collections`).then((res) => {
     if (!res.ok) throw new Error("Failed to fetch collections");
     return res.json() as Promise<CollectionDto[]>;
   });
 }
 
 export function getCollectionById(id: string): Promise<CollectionDto> {
-  return fetch(`http://localhost:3000/collections/${id}`).then((res) => {
+  return fetch(`${API_BASE_URL}/collections/${id}`).then((res) => {
     if (!res.ok) throw new Error(`Failed to fetch collection with id ${id}`);
     return res.json() as Promise<CollectionDto>;
   });
 }
 
 export function createCollection(data: CreateCollectionDto): Promise<CollectionDto> {
-  return fetch("http://localhost:3000/collections", {
+  return fetch(`${API_BASE_URL}/collections`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(data),
@@ -62,7 +64,7 @@ export function createCollection(data: CreateCollectionDto): Promise<CollectionD
 }
 
 export function updateCollection(id: string, data: UpdateCollectionDto): Promise<CollectionDto> {
-  return fetch(`http://localhost:3000/collections/${id}`, {
+  return fetch(`${API_BASE_URL}/collections/${id}`, {
     method: "PATCH",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(data),
@@ -73,7 +75,7 @@ export function updateCollection(id: string, data: UpdateCollectionDto): Promise
 }
 
 export function deleteCollection(id: string): Promise<void> {
-  return fetch(`http://localhost:3000/collections/${id}`, {
+  return fetch(`${API_BASE_URL}/collections/${id}`, {
     method: "DELETE",
   }).then((res) => {
     if (!res.ok) throw new Error(`Failed to delete collection with id ${id}`);
@@ -89,7 +91,7 @@ export function importCollection(data: ImportCollectionDto): Promise<void> {
     formData.append("paths", data.paths);
   }
 
-  return fetch("http://localhost:3000/collections/import", {
+  return fetch(`${API_BASE_URL}/collections/import`, {
     method: "POST",
     body: formData,
   }).then((res) => {
@@ -98,7 +100,7 @@ export function importCollection(data: ImportCollectionDto): Promise<void> {
 }
 
 export function exportCollection(id: string): Promise<void> {
-  return fetch(`http://localhost:3000/collections/${id}/export`).then(
+  return fetch(`${API_BASE_URL}/collections/${id}/export`).then(
     async (res) => {
       if (!res.ok) {
         throw new Error(`Failed to export collection with id ${id}`);
@@ -134,7 +136,7 @@ export function storeCollection(
   id: string,
   data: StoreCollectionDto,
 ): Promise<StoreCollectionResponse> {
-  return fetch(`http://localhost:3000/collections/${id}/store`, {
+  return fetch(`${API_BASE_URL}/collections/${id}/store`, {
     method: "POST",
     headers: {"Content-Type": "application/json"},
     body: JSON.stringify(data),

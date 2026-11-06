@@ -5,12 +5,16 @@ Developer cockpit for local backend systems: Docker container logs viewer, HTTP/
 ## Quick Start
 
 ```bash
-docker compose up --build        # foreground
+docker compose up --build        # foreground (dev: source mounts + watch)
 docker compose up -d --build     # background
 docker compose down              # stop
+
+docker compose -f docker-compose.prod.yml up --build     # production (no mounts / watchers)
+docker compose -f docker-compose.prod.yml up -d --build
+docker compose -f docker-compose.prod.yml down
 ```
 
-**URLs:** Frontend → http://localhost:5174 · Backend → http://localhost:3000
+**URLs:** Frontend → http://localhost:5847 · Backend → http://localhost:3847
 
 ## LM Studio
 

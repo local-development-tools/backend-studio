@@ -2,7 +2,7 @@
 
 This file lists all API endpoints currently exposed by the backend (`NestJS`) controllers.
 
-- Default local base URL: `http://localhost:3000`
+- Default local base URL: `http://localhost:3847`
 
 ## AI
 

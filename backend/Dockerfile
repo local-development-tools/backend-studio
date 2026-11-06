@@ -21,10 +21,10 @@ RUN npm prune --omit=dev
 FROM node:20-alpine AS runtime
 WORKDIR /app
 ENV NODE_ENV=production
-ENV PORT=3000
+ENV PORT=3847
 RUN apk add --no-cache bash postgresql-client
 COPY --from=build /app/dist ./dist
 COPY --from=build /app/node_modules ./node_modules
 COPY package*.json ./
-EXPOSE 3000
+EXPOSE 3847
 CMD ["node", "dist/main.js"]

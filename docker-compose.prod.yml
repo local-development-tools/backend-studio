@@ -1,0 +1,49 @@
+name: backend-studio
+
+services:
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+      target: runtime
+    container_name: backend-studio-backend
+    env_file:
+      - path: ./backend/.env
+        required: false
+    environment:
+      PORT: 3847
+      CORS_ORIGIN: http://localhost:5847
+      NODE_ENV: production
+      LMSTUDIO_BASE_URL: ${LMSTUDIO_BASE_URL:-ws://host.docker.internal:1234}
+      LMSTUDIO_MODEL: ${LMSTUDIO_MODEL:-llama-3.2-3b-instruct}
+    extra_hosts:
+      - host.docker.internal:host-gateway
+    ports:
+      - "3847:3847"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - ./backend/data:/app/data
+      - ./backend/data/exports:/host-exports
+      - ${MICROSERVICES_ROOT:-/tmp}:/microservices:ro
+      - type: bind
+        source: ./backend/.env
+        target: /app/.env
+      - type: bind
+        source: ./.env
+        target: /root.env
+    restart: unless-stopped
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      target: runtime
+    container_name: backend-studio-frontend
+    depends_on:
+      - backend
+    environment:
+      PORT: 5847
+      NODE_ENV: production
+    ports:
+      - "5847:5847"
+    restart: unless-stopped
